@@ -9,23 +9,6 @@ def set_environment():
     print("Environment set.")
 
 
-# Set input layers
-#parcel_poly_fc = "parcels_old_town_design_district"
-#street_poly_fc = "streets_20241024"
-#building_poly_fc = "usa_structures_old_town_design_district"
-#projected_crs = arcpy.SpatialReference(2276)
-
-# TODO: clean up - do not repeatedly project layers
-#arcpy.management.Project(parcel_poly_fc, "projected_parcels", projected_crs)
-#arcpy.management.Project(building_poly_fc, "projected_buildings", projected_crs)
-#arcpy.management.Project(street_poly_fc, "projected_streets", projected_crs)
-
-# TODO: remove these as inputs will be projected
-#projected_parcels = "projected_parcels"
-#projected_buildings = "projected_buildings"
-#projected_streets = "projected_streets"
-
-
 def get_line_layers(parcel_poly_fc, building_poly_fc, street_poly_fc):
     '''
     Return line layers for parcels and buildings from polygon inputs
