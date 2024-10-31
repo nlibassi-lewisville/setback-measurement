@@ -2,6 +2,7 @@ import os
 import arcpy
 from dotenv import load_dotenv
 import pathlib
+import time
 
 
 def set_environment():
@@ -53,9 +54,12 @@ def calculate_setbacks(parcel_line_fc, building_line_fc):
 
 
 def run(parcel_poly_fc, building_poly_fc, street_line_fc):
+    start_time = time.time()
     set_environment()
     parcel_line_fc, building_line_fc = get_line_layers(parcel_poly_fc, building_poly_fc, street_line_fc)
     calculate_setbacks(parcel_line_fc, building_line_fc)
+    end_time = time.time()
+    print(f"Time elapsed: {end_time - start_time:.2f} seconds")
 
 
 #parcel_poly_fc = os.path.join(os.getenv("WORKSPACE"), "parcels_in_zones_r_otmu_li_ao")
