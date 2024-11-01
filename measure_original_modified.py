@@ -10,21 +10,7 @@ load_dotenv(env_path)
 workspace = os.getenv("FEATURE_DATASET")
 arcpy.env.workspace = workspace
 print(f"Workspace set to {arcpy.env.workspace}")
-# Set input layers (not projected to 2276)
-#parcel_layer = "parcels_old_town_design_district"
-#street_layer = "streets_20241024"
-#building_layer = "usa_structures_old_town_design_district"
 
-#projected_crs = arcpy.SpatialReference(2276)
-
-# TODO: clean up - do not repeatedly project layers
-#arcpy.management.Project(parcel_layer, "projected_parcels", projected_crs)
-#arcpy.management.Project(building_layer, "projected_buildings", projected_crs)
-#arcpy.management.Project(street_layer, "projected_streets", projected_crs)
-
-#projected_parcels = "projected_parcels"
-#projected_buildings = "projected_buildings"
-#projected_streets = "projected_streets"
 
 projected_parcels = "parcels_in_zones_r_th_otmu_li_ao"
 projected_buildings = "osm_na_buildings_in_zones_r_th_otmu_li_ao"
