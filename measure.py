@@ -15,7 +15,7 @@ def set_environment():
     arcpy.env.overwriteOutput = True
     
 
-def get_line_layers(parcel_poly_fc, building_poly_fc, street_line_fc=None):
+def get_line_layers(parcel_poly_fc, building_poly_fc, street_line_fc):
     '''
     Return line layers for parcels and buildings from polygon inputs
     :param parcel_poly_fc - string: name of input parcel polygon feature class
@@ -24,13 +24,18 @@ def get_line_layers(parcel_poly_fc, building_poly_fc, street_line_fc=None):
     :param street_line_fc - string or None: name of input streets polygon feature class
     :return: Tuple of line layers (parcel_line_fc, building_line_fc)
     '''
+    print("Creating line layers from polygon inputs...")
+    # Select parcels that intersect with streets
+    arcpy.management.SelectLayerByLocation(parcel_poly_fc, "INTERSECT", street_line_fc)
     # Create line layers from polygon inputs
     parcel_line_fc = "parcel_line_fc"
-    building_line_fc = "building_line_fc"
+    
     # Select parcels that intersect with streets
     #arcpy.management.SelectLayerByLocation(parcel_poly_fc, "INTERSECT", street_line_fc)
     # TODO: ensure that selected parcels are used here
-    arcpy.management.PolygonToLine(parcel_poly_fc, parcel_line_fc)
+    arcpy.management.PolygonToLine(parcel_poly_fc, parcel_line_fc, where_clause="NEW_SELECTION")
+    
+    building_line_fc = "building_line_fc"
     arcpy.management.PolygonToLine(building_poly_fc, building_line_fc)
     return parcel_line_fc, building_line_fc
 
@@ -43,11 +48,12 @@ def calculate_setbacks(parcel_line_fc, building_line_fc):
     '''
     gdb_path = os.getenv("GEODATABASE")
     near_table = os.path.join(gdb_path, "near_table")
+    print("Obtaining setback distances...")
     # Calculate nearest distance between building front and parcel front
     arcpy.analysis.GenerateNearTable(building_line_fc, parcel_line_fc, near_table, 
                                     method="PLANAR", closest="ALL", distance_unit="Feet")
-
-    # Optional: Add results to the parcels or buildings layer
+    print("Joining results to buildings line layer...")
+    # Add results to the buildings line layer
     arcpy.management.JoinField(building_line_fc, "OBJECTID", near_table, "IN_FID", 
                             ["NEAR_DIST"])
     print("Setback distance calculation complete.")
@@ -55,11 +61,13 @@ def calculate_setbacks(parcel_line_fc, building_line_fc):
 
 def run(parcel_poly_fc, building_poly_fc, street_line_fc):
     start_time = time.time()
+    print(f"Start time: {start_time}")
     set_environment()
     parcel_line_fc, building_line_fc = get_line_layers(parcel_poly_fc, building_poly_fc, street_line_fc)
     calculate_setbacks(parcel_line_fc, building_line_fc)
     end_time = time.time()
-    print(f"Time elapsed: {end_time - start_time:.2f} seconds")
+    minutes_elapsed = (end_time - start_time) / 60
+    print(f"Time elapsed: {minutes_elapsed} minutes")
 
 
 #parcel_poly_fc = os.path.join(os.getenv("WORKSPACE"), "parcels_in_zones_r_otmu_li_ao")
@@ -67,10 +75,8 @@ def run(parcel_poly_fc, building_poly_fc, street_line_fc):
 
 parcel_poly_fc = "parcels_in_zones_r_th_otmu_li_ao"
 building_poly_fc = "osm_na_buildings_in_zones_r_th_otmu_li_ao"
+street_line_fc = "streets_20241030"
 
-
-
-
-run(parcel_poly_fc, building_poly_fc, None)
+run(parcel_poly_fc, building_poly_fc, street_line_fc)
 
 #set_environment()
