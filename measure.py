@@ -60,68 +60,6 @@ def join_near_distances(building_lines, near_table):
     print("Join operation complete.")
 
 
-def calculate_angle(x1, y1, x2, y2):
-    """Calculate angle in degrees between two points."""
-    angle = math.degrees(math.atan2(y2 - y1, x2 - x1))
-    return angle % 360
-
-
-def classify_direction(angle):
-    """Classify angle into primary directions: North-South or East-West."""
-    if 45 <= angle < 135 or 225 <= angle < 315:
-        return "east-west"
-    else:
-        return "north-south"
-
-
-def get_direction_change_points(line_fc):
-    """Identify points where the line changes from one primary direction to another."""
-    direction_change_points = "direction_change_points"
-    workspace = os.getenv("FEATURE_DATASET")
-    arcpy.CreateFeatureclass_management(workspace, direction_change_points, "POINT", spatial_reference=line_fc)
-    
-    with arcpy.da.InsertCursor(direction_change_points, ["SHAPE@"]) as insert_cursor:
-        with arcpy.da.SearchCursor(line_fc, ["SHAPE@"]) as search_cursor:
-            for row in search_cursor:
-                part = row[0]  # The geometry of the line
-                previous_direction = None
-                for i in range(len(part) - 1):
-                    # Calculate angle between consecutive segments
-                    x1, y1 = part[i].X, part[i].Y
-                    x2, y2 = part[i + 1].X, part[i + 1].Y
-                    angle = calculate_angle(x1, y1, x2, y2)
-                    
-                    # Classify segment direction as "north-south" or "east-west"
-                    current_direction = classify_direction(angle)
-                    
-                    # Check for direction change
-                    if previous_direction is not None and current_direction != previous_direction:
-                        # Add point at this vertex if there's a change in primary direction
-                        insert_cursor.insertRow([arcpy.Point(x1, y1)])
-                    
-                    previous_direction = current_direction
-
-    return direction_change_points
-
-
-def split_lines_at_direction_changes(line_fc, split_parcel_lines):
-    """
-    Split lines at points where the direction changes between primary directions.
-    :param line_fc: Input line feature class.
-    :param split_parcel_lines: Output feature class for split lines.
-    """
-    # Step 1: Identify direction change points
-    direction_change_points = get_direction_change_points(line_fc)
-
-    # Step 2: Split lines at direction change points
-    arcpy.management.SplitLineAtPoint(line_fc, direction_change_points, split_parcel_lines, search_radius="1 Feet")
-
-    # Clean up in-memory feature class
-    arcpy.management.Delete(direction_change_points)
-
-    print("Lines have been split at major direction changes.")
-
-
 def run():
     start_time = time.time()
     print(f"Starting setback distance calculation {time.ctime(start_time)}")
@@ -144,12 +82,8 @@ def run():
     select_parcels_near_streets(input_parcels, input_streets)
     create_line_features(input_parcels, input_buildings, parcel_lines, building_lines)
 
-    split_parcel_lines = "direction_based_split_parcel_lines"  # Replace with your desired output feature class
-    split_lines_at_direction_changes(parcel_lines, split_parcel_lines)
-
     # Calculate nearest distances and join results to building lines
-    #calculate_nearest_distances(building_lines, parcel_lines, near_table)
-    calculate_nearest_distances(building_lines, split_parcel_lines, near_table)
+    calculate_nearest_distances(building_lines, parcel_lines, near_table)
 
     join_near_distances(building_lines, near_table)
     elapsed_minutes = (time.time() - start_time) / 60
