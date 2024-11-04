@@ -117,7 +117,7 @@ def split_lines_at_significant_points(line_fc, output_split_lines_fc, angle_thre
 
 def run():
     start_time = time.time()
-    print(f"Starting setback distance calculation at {time.ctime(start_time)}...")
+    print(f"Starting setback distance calculation {time.ctime(start_time)}")
     set_environment()
     
     # Define input feature classes and output paths
@@ -140,7 +140,6 @@ def run():
     split_parcel_lines = "minimized_split_parcel_lines"
     split_lines_at_significant_points(parcel_lines, split_parcel_lines, angle_threshold=40)
 
-    
     # Calculate nearest distances and join results to building lines
     #calculate_nearest_distances(building_lines, parcel_lines, near_table)
     calculate_nearest_distances(building_lines, split_parcel_lines, near_table)
