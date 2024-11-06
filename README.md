@@ -55,7 +55,7 @@ run(): The main function that orchestrates all steps, executing the workflow fro
 
 1. Ensure all dependencies are installed and that ArcGIS Pro/ArcMap is available with necessary licenses.
 2. Configure the .env file to define FEATURE_DATASET and GEODATABASE paths.
-3. Run the script directly by executing it as a standalone Python script (python path/to/measure.py or propy path/to/measure.py if using 'propy' environment provided with ArcGIS Pro).
+3. Run the script directly by executing it as a standalone Python script (`python path/to/measure.py` or `propy path/to/measure.py` if using 'propy' environment provided with ArcGIS Pro).
 
 # Output
 
@@ -75,6 +75,6 @@ Results are found in the feature class called 'building_lines'
 
 When reviewing the results in ArcGIS Pro, turn on the labels for the OBJECTID (or IN_FID) of building_lines and for the OBJECTID of parcel_lines.
 
-While the 'OpenStreetMap Buildings for North America' obtained from the ArcGIS Living Atlas were deemed adequate for this project and the results match distances measured in ArcGIS Pro, field checking some of the measurements is recommended. 
+While the building layer 'OpenStreetMap Buildings for North America' obtained from the ArcGIS Living Atlas was deemed adequate for this project and the results match distances measured in ArcGIS Pro, field checking some of the measurements is recommended. 
 
 Better results should be expected with better input building data - one option would be to extract building features from recent imagery.
