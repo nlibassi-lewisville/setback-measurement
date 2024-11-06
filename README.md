@@ -75,6 +75,8 @@ Results are found in the feature class called 'building_lines'
 
 When reviewing the results in ArcGIS Pro, turn on the labels for the OBJECTID (or IN_FID) of building_lines and for the OBJECTID of parcel_lines.
 
+Where the input (polygon) parcel layer contains features with curved lines (especially at corner lots), the line version of the parcel boundaries does not contain separate line segments - in a future iteration of the script, these could be split at the curve to ensure setbacks are measured on at least four sides.
+
 While the building layer 'OpenStreetMap Buildings for North America' obtained from the ArcGIS Living Atlas was deemed adequate for this project and the results match distances measured in ArcGIS Pro, field checking some of the measurements is recommended. 
 
 Better results should be expected with better input building data - one option would be to extract building features from recent imagery.
