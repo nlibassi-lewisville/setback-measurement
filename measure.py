@@ -110,6 +110,21 @@ def join_near_distances(building_lines_fc, transformed_near_table_path):
     print("Join operation complete.")
 
 
+def modify_out_table_fields(out_layer_path):
+    """
+    Add and remove fields in the near table.
+    :param out_layer_path - string: Path to output layer (building feature class containing near distances).
+    """
+    print("Modifying near table fields...")
+    fields = arcpy.ListFields(out_layer_path)
+    if "LEFT_FID" in [field.name for field in fields]:
+        arcpy.management.DeleteField(out_layer_path, "LEFT_FID")
+    new_fields = [{"HEIGHT_FT", "FLOAT"}, {"AREA_FT", "FLOAT"}, {"CONDITION", "TEXT"}]
+    for field in new_fields:
+        arcpy.management.AddField(out_layer_path, field[0], field[1])
+    print("Fields modified.")    
+
+
 def run():
     start_time = time.time()
     print(f"Starting setback distance calculation {time.ctime(start_time)}")
@@ -141,6 +156,7 @@ def run():
     transformed_near_table_path = transform_near_table(gdb_path, simplified_near_table_path)
 
     join_near_distances(building_lines, transformed_near_table_path)
+    modify_out_table_fields(building_lines)
     elapsed_minutes = (time.time() - start_time) / 60
     print(f"Setback distance calculation complete in {round(elapsed_minutes, 2)} minutes.")
 
