@@ -1,22 +1,9 @@
 import os
 import arcpy
-from dotenv import load_dotenv
-import pathlib
 import time
 import pandas as pd
 import numpy as np
-
-
-def set_environment():
-    """
-    Set up the environment and workspace.
-    """
-    script_dir = pathlib.Path(__file__).parent.absolute()
-    env_path = script_dir / '.env'
-    load_dotenv(env_path)
-    arcpy.env.workspace = os.getenv("FEATURE_DATASET")
-    arcpy.env.overwriteOutput = True
-    print(f"Workspace set to {arcpy.env.workspace}")
+from shared import set_environment
 
 
 def clear_existing_outputs(output_items):
