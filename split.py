@@ -19,7 +19,7 @@ def get_lines_with_x_points(input_fc, x):
 
 
 def get_midpoints_and_corners(input_fc, line_oids, output_fc):
-    """Calculate the midpoint and detect corners for lines with more than x vertices."""
+    """Calculate the midpoint and detect corners of lines."""
     spatial_reference = arcpy.Describe(input_fc).spatialReference
     arcpy.CreateFeatureclass_management(
         out_path=os.getenv("FEATURE_DATASET"),
@@ -59,7 +59,7 @@ def get_midpoints_and_corners(input_fc, line_oids, output_fc):
 
 # TODO: remove if not needed
 def get_midpoints(input_fc, line_oids, output_fc):
-    """Calculate the midpoint for lines with more than x vertices."""
+    """Calculate the midpoint of lines."""
     spatial_reference = arcpy.Describe(input_fc).spatialReference
     arcpy.CreateFeatureclass_management(
         out_path=os.getenv("FEATURE_DATASET"),
