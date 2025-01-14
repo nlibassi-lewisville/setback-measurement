@@ -16,18 +16,7 @@ def clear_existing_outputs(output_items):
             arcpy.management.Delete(item)
 
 
-def create_line_features(parcel_polygon_fc, building_polygon_fc, parcel_line_fc, building_line_fc):
-    """
-    Convert parcel and building polygons to line features.
-    :param parcel_polygon_fc - string: Path to the parcel polygon feature class.
-    :param building_polygon_fc - string: Path to the building polygon feature class.
-    :param parcel_line_fc - string: Path for the output parcel line feature class.
-    :param building_line_fc - string: Path for the output building line feature class.
-    """
-    print("Converting polygons to lines...")
-    arcpy.management.PolygonToLine(parcel_polygon_fc, parcel_line_fc)
-    arcpy.management.PolygonToLine(building_polygon_fc, building_line_fc)
-    print("Line features created.")
+
 
 
 def select_parcels_near_streets(parcel_fc, street_fc):
@@ -193,7 +182,7 @@ def run():
 
     # Select parcels that intersect streets and convert to line features
     select_parcels_near_streets(input_parcels, input_streets)
-    create_line_features(input_parcels, input_buildings, parcel_lines, building_lines)
+    #create_line_features(input_parcels, input_buildings, parcel_lines, building_lines)
     # have not yet run with DeleteIdentical() here
     arcpy.management.DeleteIdentical(parcel_lines, "Shape")
     calculate_nearest_distances(building_lines, parcel_lines, near_table_path)
@@ -306,7 +295,7 @@ def run_with_street_info():
 
     # Process and calculate distances
     select_parcels_near_streets(input_parcels, input_streets)
-    create_line_features(input_parcels, input_buildings, parcel_lines, building_lines)
+    #create_line_features(input_parcels, input_buildings, parcel_lines, building_lines)
     parcel_line_count = arcpy.management.GetCount(parcel_lines).getOutput(0)
     print(f"number of parcel line features before deleting identical: {parcel_line_count}")
     #arcpy.management.DeleteIdentical(parcel_lines, "Shape")
