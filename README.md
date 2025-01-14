@@ -80,3 +80,23 @@ Where the input (polygon) parcel layer contains features with curved lines (espe
 While the building layer 'OpenStreetMap Buildings for North America' obtained from the ArcGIS Living Atlas was deemed adequate for this project and the results match distances measured in ArcGIS Pro, field checking some of the measurements is recommended. 
 
 Better results should be expected with better input building data - one option would be to extract building features from recent imagery.
+
+
+### Changes in Process
+
+Add name of street facing side of structure.
+
+Also, shared parcel lines create a problem. May need to iterate over parcels. 
+
+For each parcel:
+
+1. Convert parcel polygon feature to line feature (ensure parcel polygon OID is in table of line fc)
+2. Split line feature at vertices (handle issue of curved parcel boundary line segments later - start with a simple rectangular parcel)
+3. Measure distances between all lines and all buildings inside parcel polygon (generate ‘near table’)
+    - Figure out how to keep original OID of buildings
+4. Add facing street fields and other side fields to ‘near tables’
+    - Parcel id’s will probably need to be a combination of parcel polygon OID and line segment OID
+
+Then, when finished, aggregate all ‘near tables’ into a single results table
+
+This seems to resolve the problem of shared boundaries, but if near tables will be aggregated, original OIDs have to be tracked very carefully
