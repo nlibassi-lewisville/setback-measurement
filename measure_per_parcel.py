@@ -118,7 +118,7 @@ def populate_parallel_field(parcel_street_join_fc, street_name_field, parallel_f
             
             # Check if the angles are parallel
             if street_angle is not None:
-                row[2] = "Yes" if is_parallel(parcel_angle, street_angle, tolerance=40) else "No"
+                row[2] = "Yes" if is_parallel(parcel_angle, street_angle, tolerance=10) else "No"
             else:
                 row[2] = "No Match"
             
