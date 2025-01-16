@@ -9,7 +9,7 @@ from shared import set_environment
 
 def calculate_angle(geometry):
     """
-    Calculate the angle (bearing) of a line geometry in degrees.
+    Calculate the angle (bearing) of a line geometry in degrees, accounting for bidirectional lines.
     :param geometry: The geometry object of the line.
     :return: Angle in degrees (0-360).
     """
@@ -18,7 +18,12 @@ def calculate_angle(geometry):
     dx = end.X - start.X
     dy = end.Y - start.Y
     angle = math.degrees(math.atan2(dy, dx))
-    return angle % 360  # Normalize to 0-360
+    # Normalize to 0-360 degrees
+    angle = angle % 360
+    # Normalize the angle to the range 0-180 (to account for bidirectional lines)
+    if angle > 180:
+        angle -= 180
+    return angle
 
 
 def is_parallel(angle1, angle2, tolerance=10):
@@ -30,7 +35,7 @@ def is_parallel(angle1, angle2, tolerance=10):
     :return: True if angles are roughly parallel, False otherwise.
     """
     diff = abs(angle1 - angle2)
-    return diff <= tolerance or abs(360 - diff) <= tolerance
+    return diff <= tolerance
 
 
 def clip_streets_near_parcel(parcel_fc, parcel_id, street_fc, output_street_fc, buffer_ft=30):
@@ -93,10 +98,12 @@ def populate_parallel_field(parcel_street_join_fc, street_name_field, parallel_f
     :param street_fc: Path to the street feature class.
     """
     print("Attempting to populate parallel field...")
-    with arcpy.da.UpdateCursor(parcel_street_join_fc, ["SHAPE@", street_name_field, parallel_field]) as cursor:
+    # TODO - remove TARGET_FID if not needed - only included for testing/logging
+    with arcpy.da.UpdateCursor(parcel_street_join_fc, ["SHAPE@", street_name_field, parallel_field, "TARGET_FID"]) as cursor:
         for row in cursor:
             parcel_geom = row[0]
             street_name = row[1]
+            parcel_segment_id = row[3]
             
             # Get the angle of the parcel segment
             parcel_angle = calculate_angle(parcel_geom)
