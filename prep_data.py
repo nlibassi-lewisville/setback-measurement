@@ -3,6 +3,35 @@ import arcpy
 import time
 from shared import set_environment
 
+
+def create_parcel_line_fc(parcel_polygon_fc, parcel_line_fc):
+    """
+    Converts a parcel polygon feature class to a line feature class.
+    parcel
+    parcel_polygon_fc: Input parcel polygon feature class
+    parcel_line_fc: Output line feature class
+    """
+    # preserve polygon OID
+    arcpy.management.AddField(parcel_polygon_fc, "parcel_polygon_OID", "LONG")
+    arcpy.management.CalculateField(parcel_line_fc, "parcel_polygon_OID", "OBJECTID", "PYTHON3")
+
+    arcpy.management.FeatureToLine(
+        in_features=parcel_polygon_fc,
+        out_feature_class=parcel_line_fc,
+        cluster_tolerance=None,
+        attributes="ATTRIBUTES"
+        )
+    print(f"Total number of features in {parcel_line_fc}: {arcpy.management.GetCount(parcel_line_fc)}")
+
+
+    # copied from process_parcel() function
+    # Convert parcel polygon to lines
+    #arcpy.management.PolygonToLine(parcel_layer, parcel_lines_fc)
+    # Add a field to store the polygon parcel ID
+    
+    
+
+
 def identify_shared_parcel_boundaries(parcel_polygon_fc, parcel_line_fc, shared_boundary_field):
     """
     Identifies shared boundaries between parcels using a line feature class converted from polygons.
