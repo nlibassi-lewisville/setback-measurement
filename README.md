@@ -84,7 +84,11 @@ Better results should be expected with better input building data - one option w
 
 ### Changes in Process
 
+TODO - clean up this section
+
 Add name of street facing side of structure.
+
+UPDATE 1/7:
 
 Also, shared parcel lines create a problem. May need to iterate over parcels. 
 
@@ -100,3 +104,25 @@ For each parcel:
 Then, when finished, aggregate all ‘near tables’ into a single results table
 
 This seems to resolve the problem of shared boundaries, but if near tables will be aggregated, original OIDs have to be tracked very carefully
+
+UPDATE 1/21:
+
+The above worked (mostly) as expected but also required a test to see if the street segment nearest to each parcel segment is parallel to parcel segment...
+
+...that also generally worked, but in some cases, a parcel boundary shared between two parcels was found to be parallel with a street not running alongside the parcel but perpendicular to the street running alongside the parcel...
+
+...so the need to first check for shared parcel boundaries arose.
+
+Revised process:
+
+1. add and populate 'shared_boundary' field to parcel line segments in prep_data.py 
+    - input: parcel polygons
+    - output: parcel lines with 'shared_boundary' field populated
+2. for each parcel:
+    - clip streets to get only those streets inside buffer around parcel
+    - after joining streets and parcels (parcel_street_join where features represent parcel segments but also have attributes from streets table), add and populate 'is_parallel_to_street'
+    - generate near table for all parcel segments and
+        - add 'facing street' info for those that have value of 1 in 'is_parallel_to_street' field and value of 0 in 'shared_boundary' field
+        - add 'other side' info for those that value of 1 in 'shared_boundary' field (and value of 0 in 'is_parallel_to_street' field??)
+    - transform table to get info on all sides into a single row/record
+3. aggregate output near tables
