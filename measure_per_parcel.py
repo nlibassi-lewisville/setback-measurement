@@ -101,8 +101,6 @@ def populate_parallel_field(parcel_street_join_fc, parcel_lines_fc, street_name_
     """
     print("Attempting to populate parallel field...")
 
-    print("Performing spatial join between parcel lines and streets...")
-
     parcel_lines_fc = "parcel_lines"
 
     # TODO - move spatial join and addition of "is_parallel_to_street" to separate function!!
@@ -111,6 +109,8 @@ def populate_parallel_field(parcel_street_join_fc, parcel_lines_fc, street_name_
     #parcel_street_join = os.path.join(gdb_path, "parcel_street_join")
     if arcpy.Exists(parcel_street_join_fc):
         arcpy.management.Delete(parcel_street_join_fc)
+
+    print("Performing spatial join between parcel lines and streets...")
 
     #TODO: # Use a search radius that is appropriate for the data
     # value of join_type may not matter when join_operation is JOIN_ONE_TO_MANY
@@ -169,11 +169,11 @@ def populate_parallel_field(parcel_street_join_fc, parcel_lines_fc, street_name_
 
 
 
-def process_parcel(parcel_id, all_parcel_lines_fc, building_fc, initial_near_table, output_near_table, output_lines_fc, max_side_fields=4):
+def process_parcel(parcel_id, all_parcel_polygons_fc, building_fc, initial_near_table, output_near_table, output_lines_fc, max_side_fields=4):
     """
     Process a single parcel: convert to lines, measure distances, and generate a near table.
     :param parcel_id: The OBJECTID of the parcel being processed.
-    :param all_parcel_lines_fc: Path to the line feature class holding all parcels.
+    :param all_parcel_polygons_fc: Path to the polygon feature class holding all parcels.
     :param building_fc: Path to the building polygon feature class.
     :param parcel_lines_fc: Path to the temporary parcel line feature class.
     :param output_near_table: Path to the temporary output near table.
@@ -183,7 +183,7 @@ def process_parcel(parcel_id, all_parcel_lines_fc, building_fc, initial_near_tab
     arcpy.management.Delete("current_parcel2")
     # Isolate the current parcel
     parcel_layer = "current_parcel2"
-    arcpy.management.MakeFeatureLayer(all_parcel_lines_fc, parcel_layer, f"OBJECTID = {parcel_id}")
+    arcpy.management.MakeFeatureLayer(all_parcel_polygons_fc, parcel_layer, f"OBJECTID = {parcel_id}")
 
     # Convert parcel polygon to lines
     #arcpy.management.PolygonToLine(parcel_layer, parcel_lines_fc)
@@ -206,10 +206,25 @@ def process_parcel(parcel_id, all_parcel_lines_fc, building_fc, initial_near_tab
     arcpy.management.SplitLineAtPoint(parcel_layer, parcel_points_fc, split_parcel_lines_fc, search_radius="500 Feet")
 
     # Select buildings inside the parcel
-    building_layer = f"buildings_in_parcel_{parcel_id}"
-    arcpy.management.MakeFeatureLayer(building_fc, building_layer)
+    #building_layer = f"buildings_in_parcel_{parcel_id}"
+    #arcpy.management.MakeFeatureLayer(building_fc, building_layer)
     print(f"Selecting building(s) inside parcel {parcel_id}...")
-    arcpy.management.SelectLayerByLocation(building_layer, "WITHIN", parcel_layer)
+    arcpy.management.SelectLayerByLocation(building_fc, "WITHIN", parcel_layer)
+
+    # ok to have multiple buildings in a parcel 
+    #count = arcpy.management.GetCount(building_fc)
+    #count_result = int(count.getOutput(0))
+    #if count_result != "1":
+    #    print(f"WARNING: {count_result} buildings found inside parcel {parcel_id}.")
+    building_polygon_ids = []
+    with arcpy.da.SearchCursor(building_fc, ["OBJECTID"]) as cursor:
+        for row in cursor:
+            building_polygon_ids.append(row[0])
+
+    string_ids = ", ".join(str(id) for id in building_polygon_ids)
+    query = f"OBJECTID in ({string_ids})"
+    building_layer = f"buildings_in_parcel_{parcel_id}"
+    arcpy.management.MakeFeatureLayer(building_fc, building_layer, query)
 
     # TODO - uncomment and fix after processing single parcel
     # Generate near table
@@ -237,7 +252,6 @@ def process_parcel(parcel_id, all_parcel_lines_fc, building_fc, initial_near_tab
     arcpy.management.CalculateField(initial_near_table, "PARCEL_COMBO_FID", f"'{parcel_id}-' + str(!NEAR_FID!)", "PYTHON3")
     #arcpy.management.CalculateField("initial_near_table_64", "PARCEL_COMBO_FID", "'64-' + str(!NEAR_FID!)")
     
-
     # TODO - uncomment and fix after processing single parcel
     # Append the near table to the output table
     #print(f"Appending near table to output table for parcel {parcel_id}...")
@@ -335,11 +349,12 @@ def transform_near_table_with_street_info(gdb_path, near_table_name, parcel_stre
     return transformed_table_path
 
 
-def run(building_source_date, parcel_id):
+def run(building_source_date, parcel_id, all_parcel_lines_fc):
     """
     Run the process to measure distances between buildings and parcels.
     :param building_source_date - string: date of imagery used to extract building footprints in format YYYYMMDD e.g. "20240107"
     :param parcel_id - int: OBJECTID of the parcel to process
+    :param all_parcel_lines_fc - string: path to the feature class holding all parcel lines
     """
     start_time = time.time()
     print(f"Starting setback distance calculation with fields holding info on adjacent streets {time.ctime(start_time)}")
@@ -374,11 +389,12 @@ def run(building_source_date, parcel_id):
     clipped_street_fc = f"clipped_streets_near_parcel_{parcel_id}"
     clip_streets_near_parcel("parcels_in_zones_r_th_otmu_li_ao", parcel_id, input_streets, clipped_street_fc, buffer_ft=30)
     parcel_street_join_path = os.path.join(gdb, "parcel_street_join")
-    populate_parallel_field(parcel_street_join_path, temp_parcel_lines, "StFULLName", "is_parallel_to_street", street_fc=clipped_street_fc)
+    # TODO - add argument for 'all_parcel_lines_fc' to run() - comes from create_parcel_line_fc() in prep_data.py
+    populate_parallel_field(parcel_street_join_path, all_parcel_lines_fc, "StFULLName", "is_parallel_to_street", street_fc=clipped_street_fc)
 
     # parcels tried so far: 64, 62
     #process_parcel(62, parcel_fc, building_fc, temp_parcel_lines, initial_near_table, output_near_table, output_combined_lines_fc, max_side_fields=4)
-    process_parcel(parcel_id, temp_parcel_lines, building_fc, initial_near_table, output_near_table, output_combined_lines_fc, max_side_fields=4)
+    process_parcel(parcel_id, all_parcel_lines_fc, building_fc, initial_near_table, output_near_table, output_combined_lines_fc, max_side_fields=4)
 
     #transform_near_table_with_street_info(gdb, initial_near_table_name, input_streets, temp_parcel_lines)
     # TODO pass the correct split parcel lines fc in a cleaner way after testing
@@ -411,4 +427,4 @@ if __name__ == "__main__":
     #gdb = os.getenv("GEODATABASE")
     #parcel_street_join_path = os.path.join(gdb, "parcel_street_join")
     #populate_parallel_field(parcel_street_join_path, "StFULLName", "is_parallel_to_street", street_fc=clipped_street_fc)
-    run("20240107", 62)
+    run("20240107", 62, "parcel_lines_from_polygons_TEST")

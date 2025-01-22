@@ -12,8 +12,11 @@ def create_parcel_line_fc(parcel_polygon_fc, parcel_line_fc):
     parcel_line_fc: Output line feature class
     """
     # preserve polygon OID
-    arcpy.management.AddField(parcel_polygon_fc, "parcel_polygon_OID", "LONG")
-    arcpy.management.CalculateField(parcel_line_fc, "parcel_polygon_OID", "OBJECTID", "PYTHON3")
+    polygon_fields = arcpy.ListFields(parcel_polygon_fc)
+    polygon_oid_field = "parcel_polygon_OID"
+    if not any(field.name == polygon_oid_field for field in polygon_fields):
+        arcpy.management.AddField(parcel_polygon_fc, "parcel_polygon_OID", "LONG")
+    arcpy.management.CalculateField(parcel_polygon_fc, "parcel_polygon_OID", "!OBJECTID!", "PYTHON3")
 
     arcpy.management.FeatureToLine(
         in_features=parcel_polygon_fc,
@@ -113,7 +116,7 @@ if __name__ == "__main__":
     set_environment()
     parcel_polygon_fc = "parcels_in_zones_r_th_otmu_li_ao"
     parcel_line_fc = "parcel_lines_from_polygons_TEST"
-
+    create_parcel_line_fc(parcel_polygon_fc, parcel_line_fc)
     identify_shared_parcel_boundaries(parcel_polygon_fc, parcel_line_fc, "shared_boundary")
 
     print("Total time: {:.2f} seconds".format(time.time() - start_time))
