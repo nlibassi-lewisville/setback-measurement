@@ -90,18 +90,18 @@ def clip_streets_near_parcel(parcel_fc, parcel_id, street_fc, output_street_fc, 
 
 
 
-def populate_parallel_field(parcel_street_join_fc, parcel_lines_fc, street_name_field, parallel_field, street_fc):
+def populate_parallel_field(parcel_street_join_fc, parcel_line_fc, street_name_field, parallel_field, street_fc):
     """
     Populate a field in the parcel-street join table with info on whether or not each segment is parallel to the street.
     :param parcel_street_join_fc: Path to the feature class resulting from the spatial join between parcel boundary segments and streets.
-    :param parcel_lines_fc: Path to the parcel line feature class.
+    :param parcel_line_fc: Path to the parcel line feature class.
     :param street_name_field: Name of the field in the parcel_street_join_fc that contains the street name associated with each parcel boundary segment feature.
     :param parallel_field: Name of the field to populate with parallelism info.
     :param street_fc: Path to the street feature class.
     """
     print("Attempting to populate parallel field...")
 
-    parcel_lines_fc = "parcel_lines"
+    parcel_line_fc = "parcel_lines"
 
     # TODO - move spatial join and addition of "is_parallel_to_street" to separate function!!
 
@@ -114,7 +114,7 @@ def populate_parallel_field(parcel_street_join_fc, parcel_lines_fc, street_name_
 
     #TODO: # Use a search radius that is appropriate for the data
     # value of join_type may not matter when join_operation is JOIN_ONE_TO_MANY
-    arcpy.analysis.SpatialJoin(parcel_lines_fc, street_fc, parcel_street_join_fc, join_operation="JOIN_ONE_TO_MANY", join_type="KEEP_COMMON", 
+    arcpy.analysis.SpatialJoin(parcel_line_fc, street_fc, parcel_street_join_fc, join_operation="JOIN_ONE_TO_MANY", join_type="KEEP_COMMON", 
         match_option="WITHIN_A_DISTANCE", search_radius="50 Feet")
     
     # TODO - may be able to remove fields list and if statement after testing
@@ -168,6 +168,18 @@ def populate_parallel_field(parcel_street_join_fc, parcel_lines_fc, street_name_
     #arcpy.da.NumPyArrayToTable(output_array, parcel_street_join_fc)
 
 
+def list_fc_paths_in_gdb(gdb_path):
+    """
+    List all feature classes in a geodatabase.
+    :param gdb_path: Path to the geodatabase.
+    :return: List of feature class paths.
+    """
+    arcpy.env.workspace = gdb_path
+    fc_list = arcpy.ListFeatureClasses()
+    fc_paths = [os.path.join(gdb_path, fc) for fc in fc_list]
+    return fc_paths
+
+
 def process_parcel(parcel_id, all_parcel_polygons_fc, building_fc, initial_near_table, output_near_table, output_lines_fc, max_side_fields=4):
     """
     Process a single parcel: convert to lines, measure distances, and generate a near table.
@@ -175,7 +187,7 @@ def process_parcel(parcel_id, all_parcel_polygons_fc, building_fc, initial_near_
     :param all_parcel_polygons_fc: Path to the polygon feature class holding all parcels.
     :param building_fc: Path to the building polygon feature class.
     TODO remove if not needed  
-    :param parcel_lines_fc: Path to the temporary parcel line feature class.
+    :param parcel_line_fc: Path to the temporary parcel line feature class.
 
     :param output_near_table: Path to the temporary output near table.
     :param output_lines_fc: Path to the combined output parcel line feature class.
@@ -187,26 +199,33 @@ def process_parcel(parcel_id, all_parcel_polygons_fc, building_fc, initial_near_
     print(f"all_parcel_polygons_fc: {all_parcel_polygons_fc}")
     arcpy.management.MakeFeatureLayer(all_parcel_polygons_fc, "parcel_polygon_layer", f"OBJECTID = {parcel_id}")
 
-    parcel_lines_fc = f"parcel_lines_{parcel_id}"
+    parcel_line_fc = f"parcel_line_{parcel_id}"
     # Convert parcel polygon to lines
-    arcpy.management.PolygonToLine("parcel_polygon_layer", parcel_lines_fc)
+    arcpy.management.PolygonToLine("parcel_polygon_layer", parcel_line_fc)
     # Add a field to store the polygon parcel ID
-    arcpy.management.AddField(parcel_lines_fc, "PARCEL_POLYGON_OID", "LONG")
-    arcpy.management.CalculateField(parcel_lines_fc, "PARCEL_POLYGON_OID", f"{parcel_id}")
+    arcpy.management.AddField(parcel_line_fc, "PARCEL_POLYGON_OID", "LONG")
+    arcpy.management.CalculateField(parcel_line_fc, "PARCEL_POLYGON_OID", f"{parcel_id}")
     # TODO - uncomment and fix after processing single parcel
-    #arcpy.management.Append(parcel_lines_fc, output_lines_fc, "NO_TEST")
+    #arcpy.management.Append(parcel_line_fc, output_lines_fc, "NO_TEST")
 
     parcel_points_fc = f"parcel_points_{parcel_id}"
 
     # original - before refactoring
-    #arcpy.management.FeatureVerticesToPoints(parcel_lines_fc, parcel_points_fc, "ALL")
+    #arcpy.management.FeatureVerticesToPoints(parcel_line_fc, parcel_points_fc, "ALL")
     arcpy.management.FeatureVerticesToPoints("parcel_polygon_layer", parcel_points_fc, "ALL")
-    #arcpy.management.SplitLineAtPoint(parcel_lines_fc, parcel_points_fc, split_parcel_lines_fc)
-    split_parcel_lines_fc = f"split_parcel_lines_{parcel_id}"
+    #arcpy.management.SplitLineAtPoint(parcel_line_fc, parcel_points_fc, split_parcel_lines_fc)
+    # should not need to specify feature dataset path but not finding split parcel lines feature class in feature dataset???
+    split_parcel_lines_fc = os.path.join(os.getenv("FEATURE_DATASET"), f"split_parcel_lines_{parcel_id}")
+
+    fc_list = arcpy.ListFeatureClasses()
+    print(f"feature classes in feature dataset: {fc_list}")
+
     # TODO - adjust search radius if necessary
     # original - before refactoring
-    #arcpy.management.SplitLineAtPoint(parcel_lines_fc, parcel_points_fc, split_parcel_lines_fc, search_radius="500 Feet")
-    arcpy.management.SplitLineAtPoint(parcel_lines_fc, parcel_points_fc, split_parcel_lines_fc, search_radius="500 Feet")
+    #arcpy.management.SplitLineAtPoint(parcel_line_fc, parcel_points_fc, split_parcel_lines_fc, search_radius="500 Feet")
+    # split_parcel_lines_62 may be in memory? not seeing it in feature dataset, but why is parcel_points_62 in feature dataset?
+    arcpy.management.SplitLineAtPoint(parcel_line_fc, parcel_points_fc, split_parcel_lines_fc, search_radius="500 Feet")
+    print(f"Split parcel lines feature class created: {split_parcel_lines_fc}")
 
     # Select buildings inside the parcel
     #building_layer = "building_layer"
@@ -273,26 +292,25 @@ def process_parcel(parcel_id, all_parcel_polygons_fc, building_fc, initial_near_
     #arcpy.management.Delete(initial_near_table)  # Clean up in-memory table
 
 
-def transform_near_table_with_street_info(gdb_path, near_table_name, parcel_street_join, street_fc, parcel_lines_fc):
+def transform_near_table_with_street_info(gdb_path, near_table_name, parcel_street_join, street_fc, parcel_line_fc):
     """
     Transform near table to include info on adjacent street(s) and other side(s).
     :param gdb_path: Path to the geodatabase.
     :param near_table_name: Name of the near table.
-    :param street_fc: Path to feature class resulting from join of parcel line feature class with streets feature class.
-
+    :param parcel_street_join: Path to feature class resulting from join of parcel line feature class with streets feature class.
+    TODO add these if necessary
     :param street_fc: Path to the street feature class.
-    :param parcel_lines_fc: Path to the parcel line feature class.
+    :param parcel_line_fc: Path to the parcel line feature class.
     :return: Path to the transformed near table.
     """
     print("Transforming near table to include info on adjacent street(s) and other side(s)...")
-
 
     # Load spatial join results into a pandas DataFrame
     join_array = arcpy.da.TableToNumPyArray(parcel_street_join, ["TARGET_FID", "StFULLName"])
     join_df = pd.DataFrame(join_array)
     join_df = join_df.rename(columns={"TARGET_FID": "PB_FID", "StFULLName": "STREET_NAME"})
-    print("join_df head:")
-    print(join_df.head())
+    print("join_df:")
+    print(join_df)
 
     # Step 2: Load the near table into a pandas DataFrame
     near_table_path = os.path.join(gdb_path, near_table_name)
@@ -307,8 +325,8 @@ def transform_near_table_with_street_info(gdb_path, near_table_name, parcel_stre
     print(f"Near table fields: {near_table_fields}")
     near_array = arcpy.da.TableToNumPyArray(near_table_path, near_table_fields)
     near_df = pd.DataFrame(near_array)
-    print("near_df head:")
-    print(near_df.head())
+    print("near_df:")
+    print(near_df)
 
     # TODO - fix issue below
     # Merge the near table with the spatial join results to identify adjacent streets
@@ -388,7 +406,7 @@ def run(building_source_date, parcel_id, all_parcel_lines_fc):
     initial_near_table = os.path.join(gdb, initial_near_table_name)
     temp_parcel_lines = f"temp_parcel_lines_{parcel_id}"
 
-    # TODO - ensure that temp_parcel_lines is created...
+    # TODO - ensure that temp_parcel_lines is created if needed...
 
     # Final outputs
     output_near_table = f"test_output_near_table_{building_source_date}_parcel_polygon_{parcel_id}"

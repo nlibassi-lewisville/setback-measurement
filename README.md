@@ -126,3 +126,22 @@ Revised process:
         - add 'other side' info for those that value of 1 in 'shared_boundary' field (and value of 0 in 'is_parallel_to_street' field??)
     - transform table to get info on all sides into a single row/record
 3. aggregate output near tables
+
+
+Results of testing measure_per_parcel.py 1/24/25 with parcel 62:
+
+1. clip_streets_near_parcel() clipped streets near parcel
+2. populate_parallel_field() parcel street join - add joined street info to each parcel boundary line segment and populate field is_parallel_to_street
+3. process_parcel() 
+    intermediate data: parcel_line_62 (single line feature from polygon), parcel_points_62, split_parcel_lines_62 (CANNOT FIND?)
+    OPTIONAL ACTION ITEM 3: ENSURE THAT split_parcel_lines_62 can be found in the feature dataset after running
+    results in initial_near_table_62 that has fields:
+    - in_fid (representing the building polygon)
+    - near_fid (representing the line segment of the parcel boundary)
+    - near_dist (populated)
+    - facing and other side fields (not yet(?) populated)
+    - parcel_combo_fid (e.g 62-6 - the parcel polygon fid followed by the parcel line segment fid)
+    ACTION ITEM 2: initial_near_table_62 has a lot of excess info on buildings outside the parcel - should be able to get this only for the building(s) inside the parcel
+4. transform_near_table_with_street_info() results in transformed_near_table_with_street_info_parcel_62
+    - has 'other side' fields but no 'facing street' fields
+    ACTION ITEM 1: ensure that data on 'facing fields' is included
