@@ -5,11 +5,13 @@ from shared import set_environment
 
 def line_to_points(input_fc, output_fc):
     """Convert input lines to points."""
+    print("Entered lines_to_points()...")
     arcpy.management.FeatureVerticesToPoints(input_fc, output_fc, "ALL")
 
 
 def get_lines_with_x_points(input_fc, x):
     """Get a list of line OBJECTIDs with more than x vertices."""
+    print("Entered get_lines_with_x_points()...")
     line_oids = []
     with arcpy.da.SearchCursor(input_fc, ["OBJECTID", "SHAPE@"]) as cursor:
         for row in cursor:
@@ -20,6 +22,7 @@ def get_lines_with_x_points(input_fc, x):
 
 def get_midpoints_and_corners(input_fc, line_oids, output_fc):
     """Calculate the midpoint and detect corners of lines."""
+    print("Entered get_midpoints_and_corners()...")
     spatial_reference = arcpy.Describe(input_fc).spatialReference
     arcpy.CreateFeatureclass_management(
         out_path=os.getenv("FEATURE_DATASET"),
@@ -80,6 +83,7 @@ def get_midpoints(input_fc, line_oids, output_fc):
 
 def split_lines(input_fc, midpoints_fc, output_fc):
     """Split input lines using the midpoints."""
+    print("Entered split_lines()...")
     arcpy.management.SplitLineAtPoint(input_fc, midpoints_fc, output_fc)
 
 
@@ -87,18 +91,20 @@ def run(min_vertices=2):
     set_environment()
 
     # Define input and output
+    # parcel_lines_in_zones_r_th_otmu_li_ao has already been split at corners
     input_fc_name = "parcel_lines_in_zones_r_th_otmu_li_ao"
     feature_dataset = os.getenv("FEATURE_DATASET")
     input_fc = os.path.join(feature_dataset, input_fc_name)
-    output_midpoints_fc = os.path.join(feature_dataset, "midpoints_and_corners")
-    output_split_lines_fc = os.path.join(feature_dataset, "split_parcel_lines_in_zones_r_th_otmu_li_ao")
+    output_midpoints_fc = os.path.join(feature_dataset, "midpoints_and_corners_20250127")
+    output_split_lines_fc = os.path.join(feature_dataset, "split_parcel_lines_in_zones_r_th_otmu_li_ao_20250127")
     # Temporary outputs
-    temp_points_fc = os.path.join(feature_dataset, "temp_points_from_lines")
+    temp_points_fc = os.path.join(feature_dataset, "temp_points_from_lines_20250127")
     #temp_points_fc = arcpy.env.scratchGDB + "\temp_points"
 
-    arcpy.management.Delete(output_split_lines_fc)
-    arcpy.management.Delete(output_midpoints_fc)
-    arcpy.management.Delete(temp_points_fc)
+    # TODO uncomment and check for existence first
+    #arcpy.management.Delete(output_split_lines_fc)
+    #arcpy.management.Delete(output_midpoints_fc)
+    #arcpy.management.Delete(temp_points_fc)
 
     # Step 1: Convert lines to points
     line_to_points(input_fc, temp_points_fc)
