@@ -4,19 +4,18 @@ import time
 from shared import set_environment
 
 
-def create_parcel_line_fc(parcel_polygon_fc, parcel_line_fc):
+def create_parcel_line_fc(parcel_polygon_fc, parcel_line_fc, parcel_polygon_OID_field):
     """
     Converts a parcel polygon feature class to a line feature class.
-    parcel
-    parcel_polygon_fc: Input parcel polygon feature class
-    parcel_line_fc: Output line feature class
+    parcel_polygon_fc - string: Input parcel polygon feature class
+    parcel_line_fc - string: Output line feature class
+    parcel_polygon_OID_field - string: Name of field to store the OID from the parcel polygon feature class
     """
     # preserve polygon OID
     polygon_fields = arcpy.ListFields(parcel_polygon_fc)
-    polygon_oid_field = "parcel_polygon_OID"
-    if not any(field.name == polygon_oid_field for field in polygon_fields):
-        arcpy.management.AddField(parcel_polygon_fc, "parcel_polygon_OID", "LONG")
-    arcpy.management.CalculateField(parcel_polygon_fc, "parcel_polygon_OID", "!OBJECTID!", "PYTHON3")
+    if not any(field.name == parcel_polygon_OID_field for field in polygon_fields):
+        arcpy.management.AddField(parcel_polygon_fc, parcel_polygon_OID_field, "LONG")
+    arcpy.management.CalculateField(parcel_polygon_fc, parcel_polygon_OID_field, "!OBJECTID!", "PYTHON3")
 
     arcpy.management.FeatureToLine(
         in_features=parcel_polygon_fc,
@@ -33,8 +32,6 @@ def create_parcel_line_fc(parcel_polygon_fc, parcel_line_fc):
     # Add a field to store the polygon parcel ID
     
     
-
-
 def identify_shared_parcel_boundaries(parcel_polygon_fc, parcel_line_fc, shared_boundary_field):
     """
     Identifies shared boundaries between parcels using a line feature class converted from polygons.
@@ -116,7 +113,7 @@ if __name__ == "__main__":
     set_environment()
     parcel_polygon_fc = "parcels_in_zones_r_th_otmu_li_ao"
     parcel_line_fc = "parcel_lines_from_polygons_TEST"
-    create_parcel_line_fc(parcel_polygon_fc, parcel_line_fc)
+    create_parcel_line_fc(parcel_polygon_fc, parcel_line_fc, "parcel_polygon_OID")
     identify_shared_parcel_boundaries(parcel_polygon_fc, parcel_line_fc, "shared_boundary")
 
     print("Total time: {:.2f} seconds".format(time.time() - start_time))
