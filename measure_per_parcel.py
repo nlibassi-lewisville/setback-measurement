@@ -38,7 +38,7 @@ def is_parallel(angle1, angle2, tolerance=10):
     return diff <= tolerance
 
 
-def clip_streets_near_parcel(parcel_fc, parcel_id, street_fc, output_street_fc, buffer_ft=30):
+def clip_streets_near_parcel(parcel_fc, parcel_id, street_fc, output_street_fc, buffer_ft=40):
     """
     Clip streets near a parcel to avoid measuring distances to distant streets.
     :param parcel_fc: Path to the parcel feature class.
@@ -491,4 +491,6 @@ if __name__ == "__main__":
     #gdb = os.getenv("GEODATABASE")
     #parcel_street_join_path = os.path.join(gdb, "parcel_street_join")
     #populate_parallel_field(parcel_street_join_path, "StFULLName", "is_parallel_to_street", street_fc=clipped_street_fc)
-    run("20240107", 52, "parcel_lines_from_polygons_TEST")
+    #run("20240107", 62, "parcel_lines_from_polygons_TEST")
+    #run("20240107", 52, "parcel_lines_from_polygons_TEST")
+    run("20240107", 1295, "parcel_lines_from_polygons_TEST")
