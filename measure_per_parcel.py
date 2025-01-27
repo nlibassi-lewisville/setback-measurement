@@ -198,7 +198,6 @@ def process_parcel(parcel_id, all_parcel_polygons_fc, building_fc, initial_near_
     #parcel_layer = "current_parcel_test"
     print(f"all_parcel_polygons_fc: {all_parcel_polygons_fc}")
     arcpy.management.MakeFeatureLayer(all_parcel_polygons_fc, "parcel_polygon_layer", f"OBJECTID = {parcel_id}")
-
     parcel_line_fc = f"parcel_line_{parcel_id}"
     # Convert parcel polygon to lines
     arcpy.management.PolygonToLine("parcel_polygon_layer", parcel_line_fc)
@@ -207,12 +206,10 @@ def process_parcel(parcel_id, all_parcel_polygons_fc, building_fc, initial_near_
     arcpy.management.CalculateField(parcel_line_fc, "PARCEL_POLYGON_OID", f"{parcel_id}")
     # TODO - uncomment and fix after processing single parcel
     #arcpy.management.Append(parcel_line_fc, output_lines_fc, "NO_TEST")
-
     parcel_points_fc = f"parcel_points_{parcel_id}"
-
     # original - before refactoring
-    #arcpy.management.FeatureVerticesToPoints(parcel_line_fc, parcel_points_fc, "ALL")
-    arcpy.management.FeatureVerticesToPoints("parcel_polygon_layer", parcel_points_fc, "ALL")
+    arcpy.management.FeatureVerticesToPoints(parcel_line_fc, parcel_points_fc, "ALL")
+    #arcpy.management.FeatureVerticesToPoints("parcel_polygon_layer", parcel_points_fc, "ALL")
     #arcpy.management.SplitLineAtPoint(parcel_line_fc, parcel_points_fc, split_parcel_lines_fc)
     # should not need to specify feature dataset path but not finding split parcel lines feature class in feature dataset???
     split_parcel_lines_fc = os.path.join(os.getenv("FEATURE_DATASET"), f"split_parcel_lines_{parcel_id}")
@@ -249,15 +246,16 @@ def process_parcel(parcel_id, all_parcel_polygons_fc, building_fc, initial_near_
     #count_result = int(count.getOutput(0))
     #if count_result != "1":
     #    print(f"WARNING: {count_result} buildings found inside parcel {parcel_id}.")
-    building_polygon_ids = []
-    with arcpy.da.SearchCursor(building_fc, ["OBJECTID"]) as cursor:
-        for row in cursor:
-            building_polygon_ids.append(row[0])
 
-    string_ids = ", ".join(str(id) for id in building_polygon_ids)
-    query = f"OBJECTID in ({string_ids})"
-    building_layer = f"buildings_in_parcel_{parcel_id}"
-    arcpy.management.MakeFeatureLayer(building_fc, building_layer, query)
+    # commented out 1/27/25
+    #building_polygon_ids = []
+    #with arcpy.da.SearchCursor(building_fc, ["OBJECTID"]) as cursor:
+    #    for row in cursor:
+    #        building_polygon_ids.append(row[0])
+    #string_ids = ", ".join(str(id) for id in building_polygon_ids)
+    #query = f"OBJECTID in ({string_ids})"
+    #building_layer = f"buildings_in_parcel_{parcel_id}"
+    #arcpy.management.MakeFeatureLayer(building_fc, building_layer, query)
 
     # TODO - uncomment and fix after processing single parcel
     # Generate near table
@@ -265,18 +263,19 @@ def process_parcel(parcel_id, all_parcel_polygons_fc, building_fc, initial_near_
 
     print(f"Generating near table for parcel {parcel_id}...")
     arcpy.analysis.GenerateNearTable(
-        building_layer, split_parcel_lines_fc, initial_near_table, method="PLANAR", closest="ALL", search_radius="150 Feet"
+        "building_layer", split_parcel_lines_fc, initial_near_table, method="PLANAR", closest="ALL", search_radius="150 Feet"
     )
 
-    side_field_count = 0
+    #i = 0
     print(f"Adding fields with side info to near table for parcel {parcel_id}...")
-    while side_field_count < max_side_fields:
+    for i in range(1, max_side_fields + 1):
+    #while i < max_side_fields:
         # Add facing street and other side fields
-        side_field_count += 1
-        arcpy.management.AddField(initial_near_table, f"FACING_STREET_{side_field_count}", "TEXT")
-        arcpy.management.AddField(initial_near_table, f"FACING_STREET_{side_field_count}_DIST_FT", "FLOAT")
-        arcpy.management.AddField(initial_near_table, f"OTHER_SIDE_{side_field_count}_PB_FID", "LONG")
-        arcpy.management.AddField(initial_near_table, f"OTHER_SIDE_{side_field_count}_DIST_FT", "FLOAT")
+        #i += 1
+        arcpy.management.AddField(initial_near_table, f"FACING_STREET_{i}", "TEXT")
+        arcpy.management.AddField(initial_near_table, f"FACING_STREET_{i}_DIST_FT", "FLOAT")
+        arcpy.management.AddField(initial_near_table, f"OTHER_SIDE_{i}_PB_FID", "LONG")
+        arcpy.management.AddField(initial_near_table, f"OTHER_SIDE_{i}_DIST_FT", "FLOAT")
 
     # TODO - add logic for populating these fields here or elsewhere
 
@@ -306,7 +305,7 @@ def transform_near_table_with_street_info(gdb_path, near_table_name, parcel_stre
     print("Transforming near table to include info on adjacent street(s) and other side(s)...")
 
     # Load spatial join results into a pandas DataFrame
-    join_array = arcpy.da.TableToNumPyArray(parcel_street_join, ["TARGET_FID", "StFULLName"])
+    join_array = arcpy.da.TableToNumPyArray(parcel_street_join, ["TARGET_FID", "StFULLName", "is_parallel_to_street"])
     join_df = pd.DataFrame(join_array)
     join_df = join_df.rename(columns={"TARGET_FID": "PB_FID", "StFULLName": "STREET_NAME"})
     print("join_df:")
@@ -331,12 +330,15 @@ def transform_near_table_with_street_info(gdb_path, near_table_name, parcel_stre
     # TODO - fix issue below
     # Merge the near table with the spatial join results to identify adjacent streets
     merged_df = near_df.merge(join_df, left_on="NEAR_FID", right_on="PB_FID", how="left")
-    print("merged_df:")
+    merged_df["is_facing_street"] = (merged_df["STREET_NAME"].notna()) & (merged_df["is_parallel_to_street"] == "Yes")
+    print("merged_df after adding field 'is_facing_street':")
     print(merged_df)
-    merged_df["is_facing_street"] = merged_df["STREET_NAME"].notna()
-    merged_df = merged_df.drop_duplicates(subset=["NEAR_DIST", "PARCEL_COMBO_FID", "STREET_NAME"])
-    print("merged_df after adding is_facing_street and dropping duplicates:")
-    print(merged_df)
+
+    # Drop duplicate records based on NEAR_DIST, PARCEL_COMBO_FID, and STREET_NAME
+    # may or may not need this step
+    #merged_df = merged_df.drop_duplicates(subset=["NEAR_DIST", "PARCEL_COMBO_FID", "STREET_NAME"])
+    #print("merged_df after adding is_facing_street and dropping duplicates:")
+    #print(merged_df)
 
     # Step 3: Populate fields for adjacent streets and other sides
     output_data = []
@@ -422,7 +424,7 @@ def run(building_source_date, parcel_id, all_parcel_lines_fc):
     clipped_street_fc = f"clipped_streets_near_parcel_{parcel_id}"
     clip_streets_near_parcel(parcel_polygon_fc, parcel_id, input_streets, clipped_street_fc, buffer_ft=30)
     parcel_street_join_path = os.path.join(gdb, "parcel_street_join")
-    # TODO - add argument for 'all_parcel_lines_fc' to run() - comes from create_parcel_line_fc() in prep_data.py
+    # 'all_parcel_lines_fc' comes from create_parcel_line_fc() in prep_data.py
     populate_parallel_field(parcel_street_join_path, all_parcel_lines_fc, "StFULLName", "is_parallel_to_street", street_fc=clipped_street_fc)
 
     # parcels tried so far: 64, 62
