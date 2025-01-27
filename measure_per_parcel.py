@@ -181,11 +181,12 @@ def list_fc_paths_in_gdb(gdb_path):
     return fc_paths
 
 
-def process_parcel(parcel_id, all_parcel_polygons_fc, building_fc, initial_near_table, output_near_table, output_lines_fc, max_side_fields=4):
+def process_parcel(parcel_id, all_parcel_polygons_fc, all_parcel_lines_fc, building_fc, initial_near_table, output_near_table, output_lines_fc, max_side_fields=4):
     """
     Process a single parcel: convert to lines, measure distances, and generate a near table.
     :param parcel_id: The OBJECTID of the parcel being processed.
     :param all_parcel_polygons_fc: Path to the polygon feature class holding all parcels.
+    :param all_parcel_lines_fc: Path to the line feature class holding all parcel segments (output of prep_data.py).
     :param building_fc: Path to the building polygon feature class.
     TODO remove if not needed  
     :param parcel_line_fc: Path to the temporary parcel line feature class.
@@ -197,33 +198,33 @@ def process_parcel(parcel_id, all_parcel_polygons_fc, building_fc, initial_near_
     #arcpy.management.Delete("current_parcel2")
     ## Isolate the current parcel
     #parcel_layer = "current_parcel_test"
+    
     print(f"all_parcel_polygons_fc: {all_parcel_polygons_fc}")
     arcpy.management.MakeFeatureLayer(all_parcel_polygons_fc, "parcel_polygon_layer", f"OBJECTID = {parcel_id}")
-    parcel_line_fc = f"parcel_line_{parcel_id}"
-    # Convert parcel polygon to lines
-    arcpy.management.PolygonToLine("parcel_polygon_layer", parcel_line_fc)
-    # Add a field to store the polygon parcel ID
-    arcpy.management.AddField(parcel_line_fc, "PARCEL_POLYGON_OID", "LONG")
-    arcpy.management.CalculateField(parcel_line_fc, "PARCEL_POLYGON_OID", f"{parcel_id}")
-    # TODO - uncomment and fix after processing single parcel
-    #arcpy.management.Append(parcel_line_fc, output_lines_fc, "NO_TEST")
-    parcel_points_fc = f"parcel_points_{parcel_id}"
-    # original - before refactoring
-    arcpy.management.FeatureVerticesToPoints(parcel_line_fc, parcel_points_fc, "ALL")
-    #arcpy.management.FeatureVerticesToPoints("parcel_polygon_layer", parcel_points_fc, "ALL")
-    #arcpy.management.SplitLineAtPoint(parcel_line_fc, parcel_points_fc, split_parcel_lines_fc)
-    # should not need to specify feature dataset path but not finding split parcel lines feature class in feature dataset???
-    split_parcel_lines_fc = os.path.join(os.getenv("FEATURE_DATASET"), f"split_parcel_lines_{parcel_id}")
-
-    fc_list = arcpy.ListFeatureClasses()
-    print(f"feature classes in feature dataset: {fc_list}")
-
-    # TODO - adjust search radius if necessary
-    # original - before refactoring
+    # TODO ****** REPLACE ENTIRE BLOCK WITH USE OF all_parcel_lines_fc
+    #parcel_line_fc = f"parcel_line_{parcel_id}"
+    ## Convert parcel polygon to lines
+    #arcpy.management.PolygonToLine("parcel_polygon_layer", parcel_line_fc)
+    ## Add a field to store the polygon parcel ID
+    #arcpy.management.AddField(parcel_line_fc, "PARCEL_POLYGON_OID", "LONG")
+    #arcpy.management.CalculateField(parcel_line_fc, "PARCEL_POLYGON_OID", f"{parcel_id}")
+    ## TODO - uncomment and fix after processing single parcel
+    #parcel_points_fc = f"parcel_points_{parcel_id}"
+    #arcpy.management.FeatureVerticesToPoints(parcel_line_fc, parcel_points_fc, "ALL")
+    ## should not need to specify feature dataset path but not finding split parcel lines feature class in feature dataset???
+    #split_parcel_lines_fc = os.path.join(os.getenv("FEATURE_DATASET"), f"split_parcel_lines_{parcel_id}")
+    #fc_list = arcpy.ListFeatureClasses()
+    #print(f"feature classes in feature dataset: {fc_list}")
+    ## TODO - adjust search radius if necessary
+    ## original - before refactoring
+    ##arcpy.management.SplitLineAtPoint(parcel_line_fc, parcel_points_fc, split_parcel_lines_fc, search_radius="500 Feet")
+    ## split_parcel_lines_62 may be in memory? not seeing it in feature dataset, but why is parcel_points_62 in feature dataset?
     #arcpy.management.SplitLineAtPoint(parcel_line_fc, parcel_points_fc, split_parcel_lines_fc, search_radius="500 Feet")
-    # split_parcel_lines_62 may be in memory? not seeing it in feature dataset, but why is parcel_points_62 in feature dataset?
-    arcpy.management.SplitLineAtPoint(parcel_line_fc, parcel_points_fc, split_parcel_lines_fc, search_radius="500 Feet")
-    print(f"Split parcel lines feature class created: {split_parcel_lines_fc}")
+    #print(f"Split parcel lines feature class created: {split_parcel_lines_fc}")
+    # **********
+
+    # TODO - pass name of parcel_polygon_OID field to this function??
+    arcpy.management.MakeFeatureLayer(all_parcel_lines_fc, "parcel_line_layer", f"parcel_polygon_OID = {parcel_id}")
 
     # Select buildings inside the parcel
     #building_layer = "building_layer"
@@ -264,7 +265,8 @@ def process_parcel(parcel_id, all_parcel_polygons_fc, building_fc, initial_near_
 
     print(f"Generating near table for parcel {parcel_id}...")
     arcpy.analysis.GenerateNearTable(
-        "building_layer", split_parcel_lines_fc, initial_near_table, method="PLANAR", closest="ALL", search_radius="150 Feet"
+        #"building_layer", split_parcel_lines_fc, initial_near_table, method="PLANAR", closest="ALL", search_radius="150 Feet"
+        "building_layer", "parcel_line_layer", initial_near_table, method="PLANAR", closest="ALL", search_radius="150 Feet"
     )
 
     #i = 0
@@ -306,9 +308,12 @@ def transform_near_table_with_street_info(gdb_path, near_table_name, parcel_stre
     print("Transforming near table to include info on adjacent street(s) and other side(s)...")
 
     # Load spatial join results into a pandas DataFrame
-    join_array = arcpy.da.TableToNumPyArray(parcel_street_join, ["JOIN_FID", "StFULLName", "is_parallel_to_street", "shared_boundary", "parcel_polygon_OID"])
+    join_array = arcpy.da.TableToNumPyArray(parcel_street_join, ["TARGET_FID", "StFULLName", "is_parallel_to_street", "shared_boundary", "parcel_polygon_OID"])
     join_df = pd.DataFrame(join_array)
-    join_df = join_df.rename(columns={"JOIN_FID": "PB_FID", "StFULLName": "STREET_NAME"})
+    join_df = join_df.rename(columns={"TARGET_FID": "PB_FID", "StFULLName": "STREET_NAME"})
+    #TODO - get subset of join_df where parcel_polygon_OID = parcel_id - may not be necessary because of merge() below - see creation of merged_df below
+    #join_df = join_df[join_df["parcel_polygon_OID"] == f"{parcel_id}"]
+
     print("join_df:")
     print(join_df)
 
@@ -430,7 +435,7 @@ def run(building_source_date, parcel_id, all_parcel_lines_fc):
 
     # parcels tried so far: 64, 62
     #process_parcel(62, parcel_polygon_fc, building_fc, temp_parcel_lines, initial_near_table, output_near_table, output_combined_lines_fc, max_side_fields=4)
-    process_parcel(parcel_id, parcel_polygon_fc, building_fc, initial_near_table, output_near_table, output_combined_lines_fc, max_side_fields=4)
+    process_parcel(parcel_id, parcel_polygon_fc, all_parcel_lines_fc, building_fc, initial_near_table, output_near_table, output_combined_lines_fc, max_side_fields=4)
 
     #transform_near_table_with_street_info(gdb, initial_near_table_name, input_streets, temp_parcel_lines)
     # TODO pass the correct split parcel lines fc in a cleaner way after testing
