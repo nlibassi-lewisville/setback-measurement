@@ -342,9 +342,9 @@ def transform_near_table_with_street_info(gdb_path, near_table_name, parcel_stre
 
     # Drop duplicate records based on NEAR_DIST, PARCEL_COMBO_FID, and STREET_NAME
     # may or may not need this step
-    #merged_df = merged_df.drop_duplicates(subset=["NEAR_DIST", "PARCEL_COMBO_FID", "STREET_NAME"])
-    #print("merged_df after adding is_facing_street and dropping duplicates:")
-    #print(merged_df)
+    merged_df = merged_df.drop_duplicates(subset=["NEAR_DIST", "PARCEL_COMBO_FID", "STREET_NAME"])
+    print("merged_df after adding is_facing_street and dropping duplicates:")
+    print(merged_df)
 
     # Step 3: Populate fields for adjacent streets and other sides
     output_data = []
