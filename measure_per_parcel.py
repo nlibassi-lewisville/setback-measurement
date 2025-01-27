@@ -121,7 +121,7 @@ def populate_parallel_field(parcel_street_join_fc, parcel_line_fc, street_name_f
     # TODO - may be able to remove fields list and if statement after testing
     join_fields = arcpy.ListFields(parcel_street_join_fc)
     if not any(field.name == "is_parallel_to_street" for field in join_fields):
-        arcpy.management.AddField(parcel_street_join_fc, "is_parallel_to_street", "TEXT", field_length=10)
+        arcpy.management.AddField(parcel_street_join_fc, "is_parallel_to_street", "SHORT")
 
     # TODO - remove TARGET_FID if not needed - only included for testing/logging
     with arcpy.da.UpdateCursor(parcel_street_join_fc, ["SHAPE@", street_name_field, parallel_field, "TARGET_FID"]) as cursor:
@@ -143,9 +143,10 @@ def populate_parallel_field(parcel_street_join_fc, parcel_line_fc, street_name_f
             
             # Check if the angles are parallel
             if street_angle is not None:
-                row[2] = "Yes" if is_parallel(parcel_angle, street_angle, tolerance=10) else "No"
+                row[2] = 1 if is_parallel(parcel_angle, street_angle, tolerance=10) else 0
             else:
-                row[2] = "No Match"
+                # If no street found, set to -1
+                row[2] = -1
             
             cursor.updateRow(row)
 
@@ -336,7 +337,7 @@ def transform_near_table_with_street_info(gdb_path, near_table_name, parcel_stre
     # TODO - fix issue below
     # Merge the near table with the spatial join results to identify adjacent streets
     merged_df = near_df.merge(join_df, left_on="NEAR_FID", right_on="PB_FID", how="left")
-    merged_df["is_facing_street"] = (merged_df["STREET_NAME"].notna()) & (merged_df["is_parallel_to_street"] == "Yes")
+    merged_df["is_facing_street"] = (merged_df["STREET_NAME"].notna()) & (merged_df["is_parallel_to_street"] == 1)
     print("merged_df after adding field 'is_facing_street':")
     print(merged_df)
 
@@ -344,6 +345,24 @@ def transform_near_table_with_street_info(gdb_path, near_table_name, parcel_stre
     # may or may not need this step
     merged_df = merged_df.drop_duplicates(subset=["NEAR_DIST", "PARCEL_COMBO_FID", "STREET_NAME"])
     print("merged_df after adding is_facing_street and dropping duplicates:")
+    print(merged_df)
+
+    # remove unnecessary rows from merged_df - TODO - how to do this more efficiently?
+    facing_street_df = merged_df[merged_df["is_facing_street"]]
+    facing_street_df = facing_street_df.drop_duplicates(subset=["NEAR_DIST", "PB_FID"])
+    other_side_df = merged_df[~merged_df["is_facing_street"]]
+    other_side_df = other_side_df.drop_duplicates(subset=["NEAR_DIST", "PB_FID"])
+    #get series of PB_FID values from other_side_df
+    other_side_pb_fids = other_side_df["PB_FID"].unique()
+    #get series of PB_FID values from facing_street_df
+    facing_street_pb_fids = facing_street_df["PB_FID"].unique()
+    for pb_fid in other_side_pb_fids:
+        if pb_fid in facing_street_pb_fids:
+            # remove row from other side df - best way to do this?
+            other_side_df = other_side_df[other_side_df["PB_FID"] != pb_fid]
+    #assign combination of facing_street_df and other_side_df to merged_df
+    merged_df = pd.concat([facing_street_df, other_side_df])
+    print("merged_df after removing unnecessary rows:")
     print(merged_df)
 
     # Step 3: Populate fields for adjacent streets and other sides
