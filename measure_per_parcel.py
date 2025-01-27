@@ -287,6 +287,10 @@ def process_parcel(parcel_id, all_parcel_polygons_fc, all_parcel_lines_fc, build
     arcpy.management.AddField(initial_near_table, f"PARCEL_COMBO_FID", "TEXT")
     arcpy.management.CalculateField(initial_near_table, "PARCEL_COMBO_FID", f"'{parcel_id}-' + str(!NEAR_FID!)", "PYTHON3")
     #arcpy.management.CalculateField("initial_near_table_64", "PARCEL_COMBO_FID", "'64-' + str(!NEAR_FID!)")
+
+    # In a new field, hold the building polygon ID followed by parcel line ID in format 54-1, 54-2, etc.
+    arcpy.management.AddField(initial_near_table, f"BUILDING_COMBO_FID", "TEXT")
+    arcpy.management.CalculateField(initial_near_table, "BUILDING_COMBO_FID", "str(!IN_FID!) + '-' + str(!NEAR_FID!)", "PYTHON3")
     
     # TODO - uncomment and fix after processing single parcel
     # Append the near table to the output table
@@ -327,7 +331,7 @@ def transform_near_table_with_street_info(gdb_path, near_table_name, parcel_stre
     #near_table_fields = [field.name for field in arcpy.ListFields(near_table_path)]
 
     # TODO - modify field list after creating dataframe or add placeholder? - passing empty fields here resulted in TypeError: int() argument must be a string, a bytes-like object or a real number, not 'NoneType'
-    near_table_fields = ['IN_FID', 'NEAR_FID', 'NEAR_DIST', 'NEAR_RANK', 'PARCEL_COMBO_FID']
+    near_table_fields = ['IN_FID', 'NEAR_FID', 'NEAR_DIST', 'NEAR_RANK', 'PARCEL_COMBO_FID', 'BUILDING_COMBO_FID']
     print(f"Near table fields: {near_table_fields}")
     near_array = arcpy.da.TableToNumPyArray(near_table_path, near_table_fields)
     near_df = pd.DataFrame(near_array)
@@ -337,7 +341,7 @@ def transform_near_table_with_street_info(gdb_path, near_table_name, parcel_stre
     # TODO - fix issue below
     # Merge the near table with the spatial join results to identify adjacent streets
     merged_df = near_df.merge(join_df, left_on="NEAR_FID", right_on="PB_FID", how="left")
-    merged_df["is_facing_street"] = (merged_df["STREET_NAME"].notna()) & (merged_df["is_parallel_to_street"] == 1)
+    merged_df["is_facing_street"] = (merged_df["STREET_NAME"].notna()) & (merged_df["is_parallel_to_street"] == 1) & (merged_df["shared_boundary"] == 0)
     print("merged_df after adding field 'is_facing_street':")
     print(merged_df)
 
@@ -347,11 +351,11 @@ def transform_near_table_with_street_info(gdb_path, near_table_name, parcel_stre
     print("merged_df after adding is_facing_street and dropping duplicates:")
     print(merged_df)
 
-    # remove unnecessary rows from merged_df - TODO - how to do this more efficiently?
+    # remove unnecessary rows from merged_df - TODO - do this more efficiently?
     facing_street_df = merged_df[merged_df["is_facing_street"]]
-    facing_street_df = facing_street_df.drop_duplicates(subset=["NEAR_DIST", "PB_FID"])
+    facing_street_df = facing_street_df.drop_duplicates(subset=["NEAR_DIST", "BUILDING_COMBO_FID"])
     other_side_df = merged_df[~merged_df["is_facing_street"]]
-    other_side_df = other_side_df.drop_duplicates(subset=["NEAR_DIST", "PB_FID"])
+    other_side_df = other_side_df.drop_duplicates(subset=["NEAR_DIST", "BUILDING_COMBO_FID"])
     #get series of PB_FID values from other_side_df
     other_side_pb_fids = other_side_df["PB_FID"].unique()
     #get series of PB_FID values from facing_street_df
@@ -399,7 +403,7 @@ def transform_near_table_with_street_info(gdb_path, near_table_name, parcel_stre
 
     #transformed_table_path = os.path.join(gdb_path, "transformed_near_table_with_facing_optimized")
     # TODO - update or remove parcel id from name
-    transformed_table_path = os.path.join(gdb_path, "transformed_near_table_with_street_info_parcel_62")
+    transformed_table_path = os.path.join(gdb_path, "transformed_near_table_with_street_info_parcel_TEST")
     if arcpy.Exists(transformed_table_path):
         arcpy.management.Delete(transformed_table_path)
 
@@ -487,4 +491,4 @@ if __name__ == "__main__":
     #gdb = os.getenv("GEODATABASE")
     #parcel_street_join_path = os.path.join(gdb, "parcel_street_join")
     #populate_parallel_field(parcel_street_join_path, "StFULLName", "is_parallel_to_street", street_fc=clipped_street_fc)
-    run("20240107", 62, "parcel_lines_from_polygons_TEST")
+    run("20240107", 52, "parcel_lines_from_polygons_TEST")
