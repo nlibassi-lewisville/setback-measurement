@@ -128,14 +128,23 @@ Revised process:
 3. aggregate output near tables
 
 
-Results of testing measure_per_parcel.py 1/24/25 with parcel 62:
+Explanation of prep_data.py:
+
+Takes a parcel polygon feature class and creates line feature class that includes a field called 'shared_boundary' with values of 'yes' or 'no' for each feature
+
+Explanation of measure_per_parcel.py after testing 1/24/25 with parcel 62:
+
+Currently takes the following:
+- :param building_source_date - string: date of imagery used to extract building footprints in format YYYYMMDD e.g. "20240107"
+- :param parcel_id - int: OBJECTID of the parcel to process
+- :param all_parcel_lines_fc - string: path to the feature class holding all parcel lines
 
 1. clip_streets_near_parcel() clipped streets near parcel
 2. populate_parallel_field() parcel street join - add joined street info to each parcel boundary line segment and populate field is_parallel_to_street
 3. process_parcel() 
     intermediate data: parcel_line_62 (single line feature from polygon), parcel_points_62, split_parcel_lines_62 (CANNOT FIND?)
-    OPTIONAL ACTION ITEM 3: ENSURE THAT split_parcel_lines_62 can be found in the feature dataset after running
-    results in initial_near_table_62 that has fields:
+    ACTION ITEM 3: ensure that split_parcel_lines_62 can be found in the feature dataset after running
+    results in initial_near_table_62 with fields:
     - in_fid (representing the building polygon)
     - near_fid (representing the line segment of the parcel boundary)
     - near_dist (populated)
@@ -144,4 +153,26 @@ Results of testing measure_per_parcel.py 1/24/25 with parcel 62:
     ACTION ITEM 2: initial_near_table_62 has a lot of excess info on buildings outside the parcel - should be able to get this only for the building(s) inside the parcel
 4. transform_near_table_with_street_info() results in transformed_near_table_with_street_info_parcel_62
     - has 'other side' fields but no 'facing street' fields
-    ACTION ITEM 1: ensure that data on 'facing fields' is included
+    ACTION ITEM 1: ensure that data on 'facing fields' is included - if a given parcel segment does not have a shared boundary and is parallel to a street, 
+    the 'facing street' fields should be populated
+
+
+remaining as of 1/27/25:
+
+1. remove excess info from initial table on buildings outside the parcel (ACTION ITEM 2 above) - done (first commit of day)
+2. parcel_street_join needs to keep the 'shared_boundary' field
+    - added it by selecting all fields via field mapping but values are incorrect
+    - ...though shared_boundary field has correct values in fc output by prep_data.py ('parcel_lines_from_polygons_TEST')
+    - ...parcel_street_join now has the correct info for shared_boundary, but merged_df has values of NaN for shared_boundary (and for is_parallel_to_street and others PB_FID, STREET_NAME)
+    - 'PB_FIDs' of join_df do not match 'NEAR_FIDs' of near_df!!!
+3. in process_parcel(), use split parcel boundaries from prep_data.py instead of splitting again in measure_per_parcel.py (done)
+4. remove repeat facing streets and repeat other streets (done but could be more efficient)
+5. ensure correct distances and PB_FIDs are appearing in final transformed table
+5. test with multiple buildings in a single parcel - tested:
+    - parcel 52 with buildings 29 and 970
+    - parcel 1295 with buildings 969, 971, 972
+6. account for rounded parcel segments - split and rejoin when necessary
+7. run with all parcels
+8. join transformed table back to building polygon (or line) footprint fc
+9. cleanup
+ 
