@@ -116,4 +116,9 @@ if __name__ == "__main__":
     create_parcel_line_fc(parcel_polygon_fc, parcel_line_fc, "parcel_polygon_OID")
     identify_shared_parcel_boundaries(parcel_polygon_fc, parcel_line_fc, "shared_boundary")
 
+    arcpy.management.DeleteIdentical(
+        in_dataset=parcel_line_fc,
+        fields="Shape"
+        )
+
     print("Total time: {:.2f} seconds".format(time.time() - start_time))
