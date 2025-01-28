@@ -172,11 +172,11 @@ remaining as of 1/27/25:
     - parcel 52 with buildings 29 and 970 (results are as-expected)
     - parcel 1295 with buildings 969, 971, 972 (not yet behaving as expected - building 972 extends beyond parcel boundary and was completely left out of results table though one side is completely within parcel; also increased default buffer distance to 40 ft as 30 ft on 1295 did not reach St. Charles St)
 - [x] account for rounded parcel segments - split and rejoin when necessary (probably in prep_data.py) (done despite rounded segments being broken into an excessive number of segments)
-- [ ] move split_lines logic into prep_data.py
-- [ ] check results on caddy corner parcel boundaries
-- [ ] remove excessive splits in line segments
+- [ ] move split_lines logic into prep_data.py?
+- [ ] check results on caddy corner parcel boundaries (seems to be fine but will be better after removing excessive splits)
+- [ ] remove excessive splits in line segments (have not yet tried latest suggestion from chatgpt as FeatureToPoint() did not finish in over an hour)
 - [ ] run with all parcels
-- [ ] run with footprints extracted from newest Nearmap data (late Jan 2025)
+- [ ] run with building footprints extracted from newest Nearmap data (late Jan 2025)
 - [ ] join transformed table back to building polygon (or line) footprint fc
 - [ ] cleanup
  
