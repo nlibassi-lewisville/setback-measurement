@@ -379,15 +379,17 @@ def transform_near_table_with_street_info(gdb_path, near_table_name, parcel_stre
         for _, record in group.iterrows():
             near_fid = record["NEAR_FID"]
             distance = record["NEAR_DIST"]
-
+            # TODO - add parameter for max number of fields for facing street and other side?
             if record["is_facing_street"]:
-                if facing_count <= 4:  # Limit to 4 adjacent streets
+                # limit to x number of facing street sides
+                if facing_count <= 4:
                     row[f"FACING_STREET_{facing_count}"] = record["STREET_NAME"]
                     row[f"FACING_STREET_{facing_count}_PB_FID"] = near_fid
                     row[f"FACING_STREET_{facing_count}_DIST_FT"] = distance
                     facing_count += 1
             else:
-                if other_count <= 4:  # Limit to 4 other sides
+                # limit to x number of other sides
+                if other_count <= 4:
                     row[f"OTHER_SIDE_{other_count}_PB_FID"] = near_fid
                     row[f"OTHER_SIDE_{other_count}_DIST_FT"] = distance
                     other_count += 1
@@ -499,4 +501,5 @@ if __name__ == "__main__":
     # rounded corner lot - works well despite rounded segment being broken into an excessive number of segments
     #run("20240107", 219, "split_parcel_lines_in_zones_r_th_otmu_li_ao_20250128")
     # TODO - test after normal corner lot parcel with rounded lines
-    run("20240107", 1295, "split_parcel_lines_in_zones_r_th_otmu_li_ao_20250128")
+    #run("20240107", 1295, "split_parcel_lines_in_zones_r_th_otmu_li_ao_20250128")
+    run("20240107", 1618, "split_parcel_lines_in_zones_r_th_otmu_li_ao_20250128")
