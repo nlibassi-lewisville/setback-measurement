@@ -159,24 +159,24 @@ Currently takes the following:
 
 remaining as of 1/27/25:
 
-1. remove excess info from initial table on buildings outside the parcel (ACTION ITEM 2 above) - done (first commit of day)
-2. parcel_street_join needs to keep the 'shared_boundary' field
+- [x] remove excess info from initial table on buildings outside the parcel (ACTION ITEM 2 above) - done (first commit of day)
+- [x] parcel_street_join needs to keep the 'shared_boundary' field
     - added it by selecting all fields via field mapping but values are incorrect
     - ...though shared_boundary field has correct values in fc output by prep_data.py ('parcel_lines_from_polygons_TEST')
     - ...parcel_street_join now has the correct info for shared_boundary, but merged_df has values of NaN for shared_boundary (and for is_parallel_to_street and others PB_FID, STREET_NAME)
     - 'PB_FIDs' of join_df do not match 'NEAR_FIDs' of near_df!!!
-3. in process_parcel(), use split parcel boundaries from prep_data.py instead of splitting again in measure_per_parcel.py (done)
-4. remove repeat facing streets and repeat other streets (done but could be more efficient - tested with parcel 62)
-5. ensure correct distances and PB_FIDs are appearing in final transformed table (looks good for simplest parcel boundary case i.e. no parcel boundary curved segments)
-6. test with multiple buildings in a single parcel - tested:
+- [x] in process_parcel(), use split parcel boundaries from prep_data.py instead of splitting again in measure_per_parcel.py (done)
+- [x] remove repeat facing streets and repeat other streets (done but could be more efficient - tested with parcel 62)
+- [x] ensure correct distances and PB_FIDs are appearing in final transformed table (looks good for simplest parcel boundary case i.e. no parcel boundary curved segments)
+- [x] test with multiple buildings in a single parcel - tested:
     - parcel 52 with buildings 29 and 970 (results are as-expected)
     - parcel 1295 with buildings 969, 971, 972 (not yet behaving as expected - building 972 extends beyond parcel boundary and was completely left out of results table though one side is completely within parcel; also increased default buffer distance to 40 ft as 30 ft on 1295 did not reach St. Charles St)
-7. account for rounded parcel segments - split and rejoin when necessary (probably in prep_data.py) (done despite rounded segments being broken into an excessive number of segments)
-8. move split_lines logic into prep_data.py
-9. check results on caddy corner parcel boundaries
-10. remove excessive splits in line segments
-11. run with all parcels
-12. run with footprints extracted from newest Nearmap data (late Jan 2025)
-13. join transformed table back to building polygon (or line) footprint fc
-14. cleanup
+- [x] account for rounded parcel segments - split and rejoin when necessary (probably in prep_data.py) (done despite rounded segments being broken into an excessive number of segments)
+- [ ] move split_lines logic into prep_data.py
+- [ ] check results on caddy corner parcel boundaries
+- [ ] remove excessive splits in line segments
+- [ ] run with all parcels
+- [ ] run with footprints extracted from newest Nearmap data (late Jan 2025)
+- [ ] join transformed table back to building polygon (or line) footprint fc
+- [ ] cleanup
  
