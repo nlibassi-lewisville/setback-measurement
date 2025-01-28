@@ -166,13 +166,16 @@ remaining as of 1/27/25:
     - ...parcel_street_join now has the correct info for shared_boundary, but merged_df has values of NaN for shared_boundary (and for is_parallel_to_street and others PB_FID, STREET_NAME)
     - 'PB_FIDs' of join_df do not match 'NEAR_FIDs' of near_df!!!
 3. in process_parcel(), use split parcel boundaries from prep_data.py instead of splitting again in measure_per_parcel.py (done)
-4. remove repeat facing streets and repeat other streets (done but could be more efficient)
-5. ensure correct distances and PB_FIDs are appearing in final transformed table
+4. remove repeat facing streets and repeat other streets (done but could be more efficient - tested with parcel 62)
+5. ensure correct distances and PB_FIDs are appearing in final transformed table (looks good for simplest parcel boundary case i.e. no parcel boundary curved segments)
 5. test with multiple buildings in a single parcel - tested:
-    - parcel 52 with buildings 29 and 970
-    - parcel 1295 with buildings 969, 971, 972
-6. account for rounded parcel segments - split and rejoin when necessary
-7. run with all parcels
-8. join transformed table back to building polygon (or line) footprint fc
-9. cleanup
+    - parcel 52 with buildings 29 and 970 (results are as-expected)
+    - parcel 1295 with buildings 969, 971, 972 (not yet behaving as expected - building 972 extends beyond parcel boundary and was completely left out of results table though one side is completely within parcel; also increased default buffer distance to 40 ft as 30 ft on 1295 did not reach St. Charles St)
+6. account for rounded parcel segments - split and rejoin when necessary (probably in prep_data.py) (done despite rounded segments being broken into an excessive number of segments)
+7. move split_lines logic into prep_data.py
+8. check results on caddy corner parcel boundaries
+9. remove excessive splits in line segments
+10. run with all parcels
+11. join transformed table back to building polygon (or line) footprint fc
+12. cleanup
  
