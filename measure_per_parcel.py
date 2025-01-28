@@ -242,7 +242,8 @@ def process_parcel(parcel_id, all_parcel_polygons_fc, all_parcel_lines_fc, build
     #        print(row)
     #arcpy.management.SelectLayerByLocation(building_layer, "WITHIN", parcel_layer)
     #arcpy.management.SelectLayerByLocation("building_layer", "WITHIN", "parcel_layer")
-    arcpy.management.SelectLayerByLocation("building_layer", "WITHIN", "parcel_polygon_layer")
+    #arcpy.management.SelectLayerByLocation("building_layer", "WITHIN", "parcel_polygon_layer")
+    arcpy.management.SelectLayerByLocation("building_layer", "INTERSECT", "parcel_polygon_layer")
 
     # ok to have multiple buildings in a parcel 
     #count = arcpy.management.GetCount(building_fc)
@@ -451,7 +452,7 @@ def run(building_source_date, parcel_id, all_parcel_lines_fc):
 
     # TODO - remove hardcoded parcel id after testing
     clipped_street_fc = f"clipped_streets_near_parcel_{parcel_id}"
-    clip_streets_near_parcel(parcel_polygon_fc, parcel_id, input_streets, clipped_street_fc, buffer_ft=30)
+    clip_streets_near_parcel(parcel_polygon_fc, parcel_id, input_streets, clipped_street_fc, buffer_ft=40)
     parcel_street_join_path = os.path.join(gdb, "parcel_street_join")
     # 'all_parcel_lines_fc' comes from create_parcel_line_fc() in prep_data.py
     populate_parallel_field(parcel_street_join_path, all_parcel_lines_fc, "StFULLName", "is_parallel_to_street", street_fc=clipped_street_fc)
@@ -493,4 +494,9 @@ if __name__ == "__main__":
     #populate_parallel_field(parcel_street_join_path, "StFULLName", "is_parallel_to_street", street_fc=clipped_street_fc)
     #run("20240107", 62, "parcel_lines_from_polygons_TEST")
     #run("20240107", 52, "parcel_lines_from_polygons_TEST")
-    run("20240107", 1295, "parcel_lines_from_polygons_TEST")
+    #run("20240107", 1295, "parcel_lines_from_polygons_TEST")
+
+    # rounded corner lot - works well despite rounded segment being broken into an excessive number of segments
+    #run("20240107", 219, "split_parcel_lines_in_zones_r_th_otmu_li_ao_20250128")
+    # TODO - test after normal corner lot parcel with rounded lines
+    run("20240107", 1295, "split_parcel_lines_in_zones_r_th_otmu_li_ao_20250128")
