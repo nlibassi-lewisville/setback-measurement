@@ -168,14 +168,15 @@ remaining as of 1/27/25:
 3. in process_parcel(), use split parcel boundaries from prep_data.py instead of splitting again in measure_per_parcel.py (done)
 4. remove repeat facing streets and repeat other streets (done but could be more efficient - tested with parcel 62)
 5. ensure correct distances and PB_FIDs are appearing in final transformed table (looks good for simplest parcel boundary case i.e. no parcel boundary curved segments)
-5. test with multiple buildings in a single parcel - tested:
+6. test with multiple buildings in a single parcel - tested:
     - parcel 52 with buildings 29 and 970 (results are as-expected)
     - parcel 1295 with buildings 969, 971, 972 (not yet behaving as expected - building 972 extends beyond parcel boundary and was completely left out of results table though one side is completely within parcel; also increased default buffer distance to 40 ft as 30 ft on 1295 did not reach St. Charles St)
-6. account for rounded parcel segments - split and rejoin when necessary (probably in prep_data.py) (done despite rounded segments being broken into an excessive number of segments)
-7. move split_lines logic into prep_data.py
-8. check results on caddy corner parcel boundaries
-9. remove excessive splits in line segments
-10. run with all parcels
-11. join transformed table back to building polygon (or line) footprint fc
-12. cleanup
+7. account for rounded parcel segments - split and rejoin when necessary (probably in prep_data.py) (done despite rounded segments being broken into an excessive number of segments)
+8. move split_lines logic into prep_data.py
+9. check results on caddy corner parcel boundaries
+10. remove excessive splits in line segments
+11. run with all parcels
+12. run with footprints extracted from newest Nearmap data (late Jan 2025)
+13. join transformed table back to building polygon (or line) footprint fc
+14. cleanup
  
