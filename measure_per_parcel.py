@@ -9,7 +9,7 @@ from shared import set_environment
 
 def calculate_angle(geometry):
     """
-    Calculate the angle (bearing) of a line geometry in degrees, accounting for bidirectional lines.
+    Calculate the angle (bearing) between first and last points of a line geometry in degrees, accounting for bidirectional lines.
     :param geometry: The geometry object of the line.
     :return: Angle in degrees (0-360).
     """
