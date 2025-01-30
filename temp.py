@@ -212,4 +212,44 @@ with arcpy.da.SearchCursor("parcel_lines_from_polygons_TEST", ["OBJECTID", "SHAP
 #OID: 5327, X of centroid: 2430448.7651312305, X of true centroid: 2430448.765131 (straight line generally east-west)
 #OID: 5329, X of centroid: 2430505.888046725, X of true centroid: 2430505.888046249 (straight line generally east-west)
 #OID: 5598, X of centroid: 2430261.17807485, X of true centroid: 2430222.13639151 (U-shaped (opening to the left) with corners somewhat rounded) 
-#OID: 5797, X of centroid: 2429745.6830369025, X of true centroid: 2429741.278611942 (Upside down backwards L with 90 degree corner)          
+#OID: 5797, X of centroid: 2429745.6830369025, X of true centroid: 2429741.278611942 (Upside down backwards L with 90 degree corner)
+
+# why would hasCurves always return False for these lines?
+with arcpy.da.SearchCursor("parcel_lines_from_polygons_TEST", ["OBJECTID", "SHAPE@"]) as cursor:
+    for row in cursor:
+        print(f"OID: {row[0]}, has curves: {row[1].hasCurves}")
+#OID: 331, has curves: False
+#OID: 1955, has curves: False
+#OID: 1959, has curves: False
+#OID: 2024, has curves: False
+#OID: 2025, has curves: False
+#OID: 5325, has curves: False
+#OID: 5327, has curves: False
+#OID: 5329, has curves: False
+#OID: 5598, has curves: False
+#OID: 5797, has curves: False
+#OID: 5977, has curves: False       
+
+
+# example using json
+
+geometries = arcpy.CopyFeatures_management("inputFeatures", arcpy.Geometry())
+import json
+for g in geometries:
+    j = json.loads(g.JSON)
+    if 'curve' in j:print("You have true curves!")
+    else: print("No curves here")
+
+#No curves here
+#No curves here
+#You have true curves!
+#You have true curves!
+#No curves here
+#You have true curves!
+#No curves here
+#No curves here
+#You have true curves!
+#You have true curves!
+#You have true curves!
+#You have true curves!
+#You have true curves!
