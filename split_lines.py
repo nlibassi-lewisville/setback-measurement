@@ -50,6 +50,52 @@ def calculate_angle_from_points(start, end):
     return angle
 
 
+def get_split_point_coords_by_split_type(input_line_fc, line_oid, split_type, coords):
+    """
+    Get the coordinates of either the midpoint of a given line or the two midpoints that break the line into thirds.
+    :param input_line_fc - string: Input line feature class
+    :param line_oid - int: OBJECTID of the line to process
+    :param split_type - string: Type of split - one of "midpoint" or "thirds"
+    :param coords - list of list of float values: Coordinates of the one or two split points
+    """
+    print("Entered get_split_point_coords_by_line_portion()...")
+    feature_layer = "input_line_layer"
+    arcpy.management.MakeFeatureLayer(input_line_fc, feature_layer, f"OBJECTID = {line_oid}")
+    point_list = []
+    if split_type == "midpoint":
+        # possible without cursor?
+        coords = []
+        with arcpy.da.SearchCursor(feature_layer, "SHAPE@") as cursor:
+            for row in cursor:
+                coords.append(row[0].positionAlongLine(0.5,True).firstPoint.X)
+                coords.append(row[0].positionAlongLine(0.5,True).firstPoint.Y)
+                point_list.append(coords)
+    elif split_type == "thirds":
+        coords1 = []
+        coords2 = []
+        with arcpy.da.SearchCursor(feature_layer, "SHAPE@") as cursor:
+            for row in cursor:
+                coords1.append(row[0].positionAlongLine(0.33,True).firstPoint.X)
+                coords1.append(row[0].positionAlongLine(0.33,True).firstPoint.Y)
+                coords2.append(row[0].positionAlongLine(0.66,True).firstPoint.X)
+                coords2.append(row[0].positionAlongLine(0.66,True).firstPoint.Y)
+                point_list.append(coords1)
+                point_list.append(coords2)
+    #with arcpy.da.SearchCursor(input_fc, ["OBJECTID", "SHAPE@"]) as cursor:
+    #    for row in cursor:
+    #        if row[0] == line_oid:
+    #            line = row[1]
+    #            part = line.getPart(0)
+    #            if split_type == "midpoint":
+    #                midpoint_index = len(part) // 2
+    #                coords.append([part[midpoint_index].X, part[midpoint_index].Y])
+    #            elif split_type == "thirds":
+    #                third_index = len(part) // 3
+    #                coords.append([part[third_index].X, part[third_index].Y])
+    #                coords.append([part[third_index * 2].X, part[third_index * 2].Y])
+    #            break
+
+
 def get_points_for_splitting(input_point_fc, line_oid_lists, angle_threshold):
     """
     Create a feature class of points at which lines will be split.
@@ -93,6 +139,7 @@ def get_points_for_splitting(input_point_fc, line_oid_lists, angle_threshold):
             previous_geom_1 = rows[0][1]
             previous_geom_2 = rows[1][1]
             current_row = 0
+        angle_list = []
         # same cursor has to be recreated here in order to iterate through the rows again
         with arcpy.da.SearchCursor(feature_layer, ["OBJECTID", "SHAPE@"], sql_clause=(None, 'ORDER BY OBJECTID ASC')) as cursor:
             for row in cursor:
@@ -105,6 +152,7 @@ def get_points_for_splitting(input_point_fc, line_oid_lists, angle_threshold):
                     angle_1 = calculate_angle_from_points(previous_geom_1, previous_geom_2)
                     angle_2 = calculate_angle_from_points(previous_geom_2, row[1])
                     angle = abs(angle_2 - angle_1)
+                    angle_list.append(angle)
                     #if oid - 1 in [8810, 8823]:
                     #    print(f"OID's: {oid-2}, {oid-1}, {oid}. Angle: {angle}")
                     #if angle > angle_threshold:
