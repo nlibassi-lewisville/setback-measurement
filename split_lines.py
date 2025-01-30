@@ -11,15 +11,23 @@ def line_to_points(input_fc, output_fc):
     arcpy.management.FeatureVerticesToPoints(input_fc, output_fc, "ALL")
 
 
-def get_lines_with_more_than_x_points(input_fc, x):
-    """Get a list of line OBJECTIDs with more than x vertices."""
+def categorize_lines_based_on_x_points(input_fc, x=2):
+    """
+    Get lists of line OBJECTIDs with more than and less than x vertices.
+    :param input_fc - string: Input line feature class
+    :param x - int: Threshold number of vertices used to categorize lines
+    :return - tuple of two lists of int values: List of line OBJECTIDs with more than x vertices, List of line OBJECTIDs with less than x vertices
+    """
     print("Entered get_lines_with_x_points()...")
-    line_oids = []
+    line_oids_with_more_points = []
+    line_oids_with_less_points = []
     with arcpy.da.SearchCursor(input_fc, ["OBJECTID", "SHAPE@"]) as cursor:
         for row in cursor:
             if len(row[1].getPart(0)) > x:
-                line_oids.append(row[0])
-    return line_oids
+                line_oids_with_more_points.append(row[0])
+            else:
+                line_oids_with_less_points.append(row[0])
+    return (line_oids_with_more_points, line_oids_with_less_points)
 
 
 def calculate_angle_from_points(start, end):
@@ -42,48 +50,73 @@ def calculate_angle_from_points(start, end):
     return angle
 
 
-def get_points_for_splitting(input_point_fc, line_oids, angle_threshold):
+def get_points_for_splitting(input_point_fc, line_oid_lists, angle_threshold):
     """
     Create a feature class of points at which lines will be split.
     :param input_point_fc - string: Input point feature class (created from line feature class) that has a field called 'parcel_line_OID'
-    :param line_oids - list of int: List of line OBJECTIDs to process
+    :param line_oid_lists - tuple of two lists of int values: List of line OBJECTIDs with more than x vertices, List of line OBJECTIDs with less than x vertices
     :param angle_threshold - float: Threshold (in degrees) beyond which points will be used for splitting lines
 
     TODO - remove if unused
     :param output_point_fc - string: Output point feature class holding points at which lines will be split
     """
     print("Entered get_points_for_splitting()...")
+    line_oids_with_more_points = line_oid_lists[0]
+    # less_points is exactly two points
+    line_oids_with_less_points = line_oid_lists[1]
     oids_of_split_points = []
-    for oid in line_oids:
+    feature_layer = "input_points_on_two_point_line"
+    two_point_line_query = f"parcel_line_OID IN ({', '.join(map(str, line_oids_with_less_points))})"
+    arcpy.management.MakeFeatureLayer(input_point_fc, feature_layer, two_point_line_query)
+    # append the OBJECTIDs of the two points in each two-point line to the list of split points
+    print("Getting object id's of points from two-point lines...")
+    with arcpy.da.SearchCursor(feature_layer, ["OBJECTID"]) as cursor:
+        for row in cursor:
+            oids_of_split_points.append(row[0])
+    #print(f"OID's of points from two-point lines: {oids_of_split_points}")
+    print("Getting object id's of points from lines with more than two points...")
+    #print(f"Line OBJECTIDs with more than two points: {line_oids_with_more_points}")
+    for oid in line_oids_with_more_points:
         #arcpy.management.SelectLayerByAttribute(input_point_fc, "NEW_SELECTION", f"parcel_line_OID = {oid}")
         # should be working only with selected point features from here forward but doesn't seem to be the case
         feature_layer = "input_points_on_single_line"
         arcpy.management.MakeFeatureLayer(input_point_fc, feature_layer, f"parcel_line_OID = {oid}")
         #with arcpy.da.SearchCursor(input_point_fc, ["OBJECTID", "SHAPE@"], sql_clause=(None, 'ORDER BY OBJECTID ASC')) as cursor:
         with arcpy.da.SearchCursor(feature_layer, ["OBJECTID", "SHAPE@"], sql_clause=(None, 'ORDER BY OBJECTID ASC')) as cursor:
+            rows = list(cursor)
+            row_count = len(rows)
+            #print(f"Number of points in line with oid {oid}: {row_count}")
+            #print(f"rows: {rows}")
+            # append the OBJECTIDs of the first and last points of each line to the list of split points
+            oids_of_split_points.append(rows[0][0])
+            oids_of_split_points.append(rows[row_count - 1][0])
+            previous_geom_1 = rows[0][1]
+            previous_geom_2 = rows[1][1]
+            current_row = 0
+        # same cursor has to be recreated here in order to iterate through the rows again
+        with arcpy.da.SearchCursor(feature_layer, ["OBJECTID", "SHAPE@"], sql_clause=(None, 'ORDER BY OBJECTID ASC')) as cursor:
             for row in cursor:
-                previous_geom_1 = None
-                previous_geom_2 = None
-                for row in cursor:
-                    if not previous_geom_1:
-                        previous_geom_1 = row[1]
-                        continue
-                    elif not previous_geom_2:
-                        previous_geom_2 = row[1]
-                        continue
-                    else:
-                        oid = row[0]
-                        angle_1 = calculate_angle_from_points(previous_geom_1, previous_geom_2)
-                        angle_2 = calculate_angle_from_points(previous_geom_2, row[1])
-                        angle = abs(angle_2 - angle_1)
-                        #print(f"OID's: {oid-2}, {oid-1}, {oid}. Angle: {angle}")
-                        if angle > angle_threshold:
-                            # append OID of 2nd point in the 3-point sequence
-                            oids_of_split_points.append(oid - 1)
-                        elif angle < angle_threshold and angle > angle_threshold - 5:
-                            print(f"Angle: {angle} between points with OID {oid-2}, {oid-1}, and {oid} is within 5 degrees of threshold.")
-                        previous_geom_1 = previous_geom_2
-                        previous_geom_2 = row[1]
+                current_row += 1
+                # skip first two points in line as we need three to calculate an angle
+                if current_row < 3:
+                    continue
+                else:
+                    oid = row[0]
+                    angle_1 = calculate_angle_from_points(previous_geom_1, previous_geom_2)
+                    angle_2 = calculate_angle_from_points(previous_geom_2, row[1])
+                    angle = abs(angle_2 - angle_1)
+                    #if oid - 1 in [8810, 8823]:
+                    #    print(f"OID's: {oid-2}, {oid-1}, {oid}. Angle: {angle}")
+                    #if angle > angle_threshold:
+                    if angle > angle_threshold and angle < 180 - angle_threshold:
+                        # append OID of 2nd point in the 3-point sequence
+                        oids_of_split_points.append(oid - 1)
+                        #if angle < angle_threshold + 5:
+                        #    print(f"Angle: {angle} between points with OID {oid-2}, {oid-1}, and {oid} is 5 degrees OVER threshold of {angle_threshold}.")
+                    #elif angle < angle_threshold and angle > angle_threshold - 5:
+                    #    print(f"Angle: {angle} between points with OID {oid-2}, {oid-1}, and {oid} is 5 degrees UNDER threshold of {angle_threshold}.")
+                    previous_geom_1 = previous_geom_2
+                    previous_geom_2 = row[1]
 
     # same as below
     #query_string = f"OBJECTID IN ({', '.join(map(str, oids_of_split_points))})"
@@ -283,11 +316,17 @@ def run(min_vertices=2):
     # Define input and output feature classes
     # parcel_lines_in_zones_r_th_otmu_li_ao has already been split at corners
     #input_line_fc_name = "parcel_lines_in_zones_r_th_otmu_li_ao"
+
+    # all parcel lines
     input_line_fc_name = "parcel_lines_from_polygons_TEST"
+    #subset of parcel lines for testing
+    #input_line_fc_name = "subset_parcel_lines_from_polygons_TEST"
+
     # all points from parcel lines
     input_point_fc_name = "points_from_parcel_lines_from_polygons_TEST"
     #subset of points from parcel lines for testing
-    #input_point_fc_name = "subset_points_from_parcel_lines_from_polygons_TEST"
+    #input_point_fc_name = "subset2_points_from_parcel_lines_from_polygons_TEST"
+
     feature_dataset = os.getenv("FEATURE_DATASET")
     input_fc = os.path.join(feature_dataset, input_line_fc_name)
     output_midpoints_fc_name = "midpoints_and_corners_20250128"
@@ -305,13 +344,13 @@ def run(min_vertices=2):
     line_to_points(input_fc, temp_points_fc)
 
     # Step 2: Get lines with more than x points
-    line_oids = get_lines_with_more_than_x_points(input_fc, min_vertices)
+    line_oid_lists = categorize_lines_based_on_x_points(input_fc, min_vertices)
 
     # Step 3: Calculate and save midpoints and corners
     #get_midpoints_and_clusters(input_fc, line_oids, output_midpoints_fc_name, 7, 40)
     #get_clustered_points(input_fc, line_oids, output_midpoints_fc_name, 6, 50)
 
-    get_points_for_splitting(input_point_fc_name, line_oids, 15)
+    get_points_for_splitting(input_point_fc_name, line_oid_lists, 30)
 
     # Step 4: Split lines at midpoints
     #split_lines(input_fc, output_midpoints_fc, output_split_lines_fc, 250)
