@@ -187,12 +187,17 @@ To remove excess splits in parcel lines 1/29/25:
 - [x] add line oid to attribute table
 - [x] convert lines to points
 - [x] for each group of points with the same line oid (if there are more than 2 points in line segment), append all angles between adjacent points to a list (ensure that order of points is preserved)
-- [ ] check on threshold - check some from list below in fc points_for_splitting_angle_threshold_15
-- [ ] for each group of three points representing a line:
-    -[x] if list of angles contains any values over a threshold (~10-15), insert a point that will be used for splitting
-    -[ ] if list of angles contains only smaller angles:
-        - [ ] if angle between first and last points of line suggests a corner, split line at midpoint only
-        - [ ] if angle between first and last points of line suggests a U-shaped line, split line into thirds
+    - [x] check on threshold - check some from list below in fc points_for_splitting_angle_threshold_15
+    - [ ] for each group of three points representing a line:
+        -[x] if list of angles contains any values over a threshold (~10-15), insert a point that will be used for splitting
+        -[ ] if list of angles contains only smaller angles:
+            - [ ] if angle between first and last points of line suggests a corner, split line at midpoint only
+            - [ ] if angle between first and last points of line suggests a U-shaped line, split line into thirds (knowing that there will be exceptions where one side is longer than another e.g. parcel 1455)
+- [x] for each pair of points with the same line oid (lines with exactly two vertices - start and end only), add both points directly to fc holding points for splitting lines OR include the start and end points of all lines?
+
+check separately if not fixed by adding all points that make up two-point lines: 
+line oid 13 (points 29-32)
+
 
 Example where no points (for splitting line) should be added (line is mostly straight with a slight curve):
 with arcpy.da.SearchCursor("points_from_parcel_lines_from_polygons_TEST", ["OBJECTID", "SHAPE@"]) as cursor:
@@ -252,7 +257,8 @@ OID's: 3, 4, 5. Angle: 109.27683515899992
 OID's: 4, 5, 6. Angle: -88.77338093846737
 
 
-Angle: 10.005369630727227 between points with OID 563, 564, and 565 is within 5 degrees of threshold.
+
+Angle: 10.005369630727227 between points with OID 563, 564, and 565 is within 5 degrees of threshold. - on a curve for a corner lot - did not add a point which is desired behavior
 Angle: 10.056827624432913 between points with OID 566, 567, and 568 is within 5 degrees of threshold.
 Angle: 10.005382165499157 between points with OID 847, 848, and 849 is within 5 degrees of threshold.
 Angle: 10.010266343659026 between points with OID 849, 850, and 851 is within 5 degrees of threshold.
@@ -263,7 +269,7 @@ Angle: 10.03957425508046 between points with OID 1119, 1120, and 1121 is within 
 Angle: 11.653819290571196 between points with OID 1210, 1211, and 1212 is within 5 degrees of threshold.
 Angle: 10.034184432339003 between points with OID 1507, 1508, and 1509 is within 5 degrees of threshold.
 Angle: 10.04121210485809 between points with OID 1509, 1510, and 1511 is within 5 degrees of threshold.
-Angle: 13.085815708848543 between points with OID 1697, 1698, and 1699 is within 5 degrees of threshold.
+Angle: 13.085815708848543 between points with OID 1697, 1698, and 1699 is within 5 degrees of threshold. - may or may not need a point with angles of this size
 Angle: 10.03632626583618 between points with OID 1997, 1998, and 1999 is within 5 degrees of threshold.
 Angle: 10.022331056561896 between points with OID 2000, 2001, and 2002 is within 5 degrees of threshold.
 Angle: 10.008484457612255 between points with OID 2002, 2003, and 2004 is within 5 degrees of threshold.
@@ -342,7 +348,7 @@ Angle: 14.287048431815663 between points with OID 8557, 8558, and 8559 is within
 Angle: 11.514352860766394 between points with OID 8563, 8564, and 8565 is within 5 degrees of threshold.
 Angle: 13.742038981894837 between points with OID 8565, 8566, and 8567 is within 5 degrees of threshold.
 Angle: 11.34752826909591 between points with OID 8626, 8627, and 8628 is within 5 degrees of threshold.
-Angle: 14.194503783030214 between points with OID 8632, 8633, and 8634 is within 5 degrees of threshold.
+Angle: 14.194503783030214 between points with OID 8632, 8633, and 8634 is within 5 degrees of threshold. - part of strange circular cutouts - no need for a point here
 Angle: 12.476147824391418 between points with OID 8634, 8635, and 8636 is within 5 degrees of threshold.
 Angle: 13.788697064401674 between points with OID 8639, 8640, and 8641 is within 5 degrees of threshold.
 Angle: 11.877660866153036 between points with OID 8644, 8645, and 8646 is within 5 degrees of threshold.
