@@ -231,8 +231,7 @@ with arcpy.da.SearchCursor("parcel_lines_from_polygons_TEST", ["OBJECTID", "SHAP
 #OID: 5977, has curves: False       
 
 
-# example using json
-
+# example using json but also returns 'No curves' for all input geometries though some have curves
 geometries = arcpy.CopyFeatures_management("inputFeatures", arcpy.Geometry())
 import json
 for g in geometries:
@@ -253,3 +252,18 @@ for g in geometries:
 #You have true curves!
 #You have true curves!
 #You have true curves!
+
+
+# try this call of GenerateNearTable using closet_count = x
+arcpy.analysis.GenerateNearTable(
+    in_features="extracted_footprints_nm_20240107_in_aoi_and_zones_r_th_otmu_li_ao",
+    near_features="parcel_lines_from_polygons",
+    out_table=r"C:\Users\nlibassi\Documents\ArcGIS\Projects\setback_measurement_2276\setback_measurement_2276.gdb\near_table_nm_20240107",
+    search_radius="150 Feet",
+    location="NO_LOCATION",
+    angle="NO_ANGLE",
+    closest="ALL",
+    closest_count=8,
+    method="PLANAR",
+    distance_unit="Feet"
+)
