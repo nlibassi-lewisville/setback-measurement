@@ -265,6 +265,7 @@ def process_parcel(parcel_id, all_parcel_polygons_fc, all_parcel_lines_fc, build
     # Generate near table
     #near_table = f"in_memory/near_table_{parcel_id}"
 
+    # TODO set closest_count param to 8-10
     print(f"Generating near table for parcel {parcel_id}...")
     arcpy.analysis.GenerateNearTable(
         "building_layer", "parcel_line_layer", initial_near_table, method="PLANAR", closest="ALL", search_radius="150 Feet"
