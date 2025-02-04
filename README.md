@@ -198,6 +198,32 @@ To remove excess splits in parcel lines 1/29/25:
 check separately if not fixed by adding all points that make up two-point lines: 
 line oid 13 (points 29-32)
 
+2/3/25
+
+Tested vertex density approach:
+- seems that a point count threshold along lines whose lengths fall within a certain range would work better than density index
+- ...but there are some lines that need to be split in multiple places that are also very long...
+- ...suggests that identifying clusters along lines might be more appropriate
+
+2/4/25
+
+Testing ArcGIS Built-In 'Find Point Clusters' Tool for getting points at which to split lines
+- Tool consumes credits
+- duplicate/co-located points result in false positives even if min point is set to 9 - before getting clusters, remove duplicates (done)
+- May need a combination of cluster identification and angle measurement if b is not resolved by removing duplicates
+- With min points set to 9 and search distance set to 10 ft, not clear why a 15-point cluster would get identified but a 12-pt cluster with very similar spacing/etc did not get picked up (screenshot below)
+- Ensure that clusters are on the same line - how (without running tool over and over)?
+
+Re-trying get_clustered_points() function I had tried last week:
+- remembered that one issue was that 'cluster centers' were usually (always?) chosen near a cluster but not directly on the line from which they came (thought this was resolved though)
+- also splitting at mid-point or thirds is not reliable - there are too many exceptions
+
+Modified approach to get clusters
+- [x] re-use some of the functions from get_vertex_density.py to count vertices along each line
+- [x] for each group of points that belong to a given line, compile a dictionary of distance-oid pairs between each point
+- [ ] analyze distances
+- [ ] try without deleting duplicate points so that no (or less?) spaces are missed
+
 
 Example where no points (for splitting line) should be added (line is mostly straight with a slight curve):
 with arcpy.da.SearchCursor("points_from_parcel_lines_from_polygons_TEST", ["OBJECTID", "SHAPE@"]) as cursor:
