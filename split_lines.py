@@ -6,14 +6,20 @@ from shared import set_environment
 
 
 def line_to_points(input_fc, output_fc):
-    """Convert input lines to points."""
+    """Convert input lines to points with unique geometry"""
     print("Entered lines_to_points()...")
     arcpy.management.FeatureVerticesToPoints(input_fc, output_fc, "ALL")
+    arcpy.management.DeleteIdentical(
+        in_dataset=output_fc,
+        fields="Shape",
+        xy_tolerance=None,
+        z_tolerance=0
+    )
 
 
 def categorize_lines_based_on_x_points(input_fc, x=2):
     """
-    Get lists of line OBJECTIDs with more than and less than x vertices.
+    Get lists of line OBJECTIDs with more than and less than x vertices (two separate lists).
     :param input_fc - string: Input line feature class
     :param x - int: Threshold number of vertices used to categorize lines
     :return - tuple of two lists of int values: List of line OBJECTIDs with more than x vertices, List of line OBJECTIDs with less than x vertices
@@ -406,7 +412,8 @@ def run(min_vertices=2):
 
     feature_dataset = os.getenv("FEATURE_DATASET")
     input_fc = os.path.join(feature_dataset, input_line_fc_name)
-    output_midpoints_fc_name = "midpoints_and_corners_20250128"
+    #output_midpoints_fc_name = "midpoints_and_corners_20250128"
+    output_midpoints_fc_name = "cluster_centers_20250204"
     output_midpoints_fc = os.path.join(feature_dataset, output_midpoints_fc_name)
     output_split_lines_fc = os.path.join(feature_dataset, "split_parcel_lines_in_zones_r_th_otmu_li_ao_20250128")
     # Temporary outputs
@@ -426,8 +433,9 @@ def run(min_vertices=2):
     # Step 3: Calculate and save midpoints and corners
     #get_midpoints_and_clusters(input_fc, line_oids, output_midpoints_fc_name, 7, 40)
     #get_clustered_points(input_fc, line_oids, output_midpoints_fc_name, 6, 50)
+    get_clustered_points(input_fc, line_oid_lists[0], output_midpoints_fc_name, 9, 25)
 
-    get_points_for_splitting(input_point_fc_name, line_oid_lists, 30)
+    #get_points_for_splitting(input_point_fc_name, line_oid_lists, 30)
 
     # Step 4: Split lines at midpoints
     #split_lines(input_fc, output_midpoints_fc, output_split_lines_fc, 250)
