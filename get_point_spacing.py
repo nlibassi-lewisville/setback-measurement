@@ -5,7 +5,7 @@ from shared import set_environment
 
 
 def add_fields(line_fc):
-    """Adds 'parcel_line_OID' (LONG) and 'point_spacing' (TEXT 3000 chars) fields."""
+    """Add fields for 'parcel_line_OID' (LONG) and 'point_spacing' (TEXT 3000 chars)"""
     arcpy.AddField_management(line_fc, "parcel_line_OID", "LONG")
     arcpy.AddField_management(line_fc, "point_spacing", "TEXT", field_length=3000)
 
@@ -50,9 +50,8 @@ def calculate_point_spacing(unique_point_fc, line_fc):
 
             if previous_point is not None:
                 # Calculate distance between current and previous point (feet)
-                # TODO - remove conversion from meters to feet?
                 #dist = ((row[2][0] - previous_point[0]) ** 2 + (row[2][1] - previous_point[1]) ** 2) ** 0.5 * 3.28084  # Convert meters to feet
-                dist = ((row[2].centroid.X - previous_point[0]) ** 2 + (row[2].centroid.Y - previous_point[1]) ** 2) ** 0.5 * 3.28084  # Convert meters to feet
+                dist = ((row[2].centroid.X - previous_point[0]) ** 2 + (row[2].centroid.Y - previous_point[1]) ** 2) ** 0.5
                 spacing_dict[row[1]] = round(dist, 2)
 
             #previous_point = row[2]
