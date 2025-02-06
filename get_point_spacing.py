@@ -9,6 +9,7 @@ def add_fields(line_fc):
     arcpy.AddField_management(line_fc, "parcel_line_OID", "LONG")
     arcpy.AddField_management(line_fc, "point_spacing", "TEXT", field_length=3000)
 
+
 def populate_oid_field(line_fc):
     """Populates 'parcel_line_OID' with OBJECTID."""
     with arcpy.da.UpdateCursor(line_fc, ["parcel_line_OID", "OBJECTID"]) as cursor:
@@ -16,14 +17,17 @@ def populate_oid_field(line_fc):
             row[0] = row[1]
             cursor.updateRow(row)
 
+
 def convert_lines_to_points(line_fc, output_point_fc):
     """Runs 'Feature Vertices to Points' to generate points at line vertices."""
     arcpy.FeatureVerticesToPoints_management(line_fc, output_point_fc, "ALL")
+
 
 def remove_duplicate_points(point_fc, unique_point_fc):
     """Deletes points with duplicate geometries."""
     arcpy.DeleteIdentical_management(point_fc, ["Shape"])
     arcpy.CopyFeatures_management(point_fc, unique_point_fc)
+
 
 def calculate_point_spacing(unique_point_fc, line_fc):
     """Calculates spacing between consecutive points and stores results in the line feature class."""
@@ -67,30 +71,52 @@ def calculate_point_spacing(unique_point_fc, line_fc):
             row[1] = line_spacing.get(row[0], "{}")
             cursor.updateRow(row)
 
+
+def get_curved_lines(line_fc, curved_lines_fc, distance_threshold=4, point_count_threshold=5):
+    """
+    Selects curved lines from the input feature class based on number of consecutive points separated by a distance less than a given threshold.
+    :param line_fc: Input feature class containing lines and a poit_spacing field (added in calculate_point_spacing()).
+    :param curved_lines_fc: Output feature class for storing selected curved lines.
+    :param distance_threshold: Maximum distance (in feet) between consecutive points for identification of a curve.
+    :param point_count_threshold: Minimum number of consecutive points under the distance_threshold for identification of a curve.
+    """
+    curved_oids = []
+    with arcpy.da.SearchCursor(line_fc, ["OBJECTID", "point_spacing"]) as cursor:
+        for row in cursor:
+            # TODO need for json.loads() here?
+            point_spacing = json.loads(row[1])
+            consecutive_points = 0
+            for oid, spacing in point_spacing.items():
+                if spacing < distance_threshold:
+                    consecutive_points += 1
+                    if consecutive_points >= point_count_threshold:
+                        curved_oids.append(row[0])
+                        break
+                else:
+                    consecutive_points = 0
+    #arcpy.selectlayerbyattribute(line_fc, "OBJECTID", "IN", curved_oids)
+    #arcpy.management.SelectLayerByAttribute(line_fc, "NEW_SELECTION", f"OBJECTID IN {','.join(map(str, curved_oids))}")
+    curved_lines = "curved_lines_layer"
+    arcpy.management.MakeFeatureLayer(line_fc, curved_lines, f"OBJECTID IN ({','.join(map(str, curved_oids))})")
+    # TODO build name of curved_lines_fc from params
+    arcpy.CopyFeatures_management(curved_lines, curved_lines_fc)
+
+
 def main(line_fc, workspace):
     """Main function that executes all steps."""
+    # TODO - check for redundancy in set_environment()
     arcpy.env.workspace = workspace
     arcpy.env.overwriteOutput = True
 
     # Define intermediate datasets
     point_fc = os.path.join(workspace, "line_vertices_points_20250204")
     unique_point_fc = os.path.join(workspace, "unique_line_vertices_20250204")
-
-    # Step 1-2: Add new fields
     add_fields(line_fc)
-
-    # Step 3: Populate OID field
     populate_oid_field(line_fc)
-
-    # Step 4: Convert lines to points
     convert_lines_to_points(line_fc, point_fc)
-
-    # Step 5: Remove duplicate points
     remove_duplicate_points(point_fc, unique_point_fc)
-
-    # Step 6: Calculate and store point spacing
     calculate_point_spacing(unique_point_fc, line_fc)
-
+    get_curved_lines(line_fc, os.path.join(workspace, "curved_lines_20250206"), distance_threshold=4, point_count_threshold=5)
     print("Processing completed successfully.")
 
 # Example usage:
