@@ -72,11 +72,10 @@ def calculate_point_spacing(unique_point_fc, line_fc):
             cursor.updateRow(row)
 
 
-def get_curved_lines(line_fc, curved_lines_fc, distance_threshold=4, point_count_threshold=5):
+def get_curved_lines(line_fc,  distance_threshold=4, point_count_threshold=5):
     """
     Selects curved lines from the input feature class based on number of consecutive points separated by a distance less than a given threshold.
     :param line_fc: Input feature class containing lines and a poit_spacing field (added in calculate_point_spacing()).
-    :param curved_lines_fc: Output feature class for storing selected curved lines.
     :param distance_threshold: Maximum distance (in feet) between consecutive points for identification of a curve.
     :param point_count_threshold: Minimum number of consecutive points under the distance_threshold for identification of a curve.
     """
@@ -98,7 +97,7 @@ def get_curved_lines(line_fc, curved_lines_fc, distance_threshold=4, point_count
     #arcpy.management.SelectLayerByAttribute(line_fc, "NEW_SELECTION", f"OBJECTID IN {','.join(map(str, curved_oids))}")
     curved_lines = "curved_lines_layer"
     arcpy.management.MakeFeatureLayer(line_fc, curved_lines, f"OBJECTID IN ({','.join(map(str, curved_oids))})")
-    # TODO build name of curved_lines_fc from params
+    curved_lines_fc = os.path.join(workspace, f"curved_lines_using_{point_count_threshold}_consecutive_pts_with_{distance_threshold}_ft_spacing")
     arcpy.CopyFeatures_management(curved_lines, curved_lines_fc)
 
 
@@ -116,7 +115,7 @@ def main(line_fc, workspace):
     convert_lines_to_points(line_fc, point_fc)
     remove_duplicate_points(point_fc, unique_point_fc)
     calculate_point_spacing(unique_point_fc, line_fc)
-    get_curved_lines(line_fc, os.path.join(workspace, "curved_lines_20250206"), distance_threshold=4, point_count_threshold=5)
+    get_curved_lines(line_fc, distance_threshold=5, point_count_threshold=5)
     print("Processing completed successfully.")
 
 # Example usage:
