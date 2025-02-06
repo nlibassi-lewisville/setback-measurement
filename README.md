@@ -225,7 +225,14 @@ Modified approach to get clusters
 - [ ] try without deleting duplicate points so that no (or less?) spaces are missed
 
 
-On analysis of numbers of points and distances between each: find x (5?) or more consecutive distances under 4 feet?
+2/6/25:
+
+- got 214 (almost all if not all) curved lines that need to be split by finding lines with 5 or more consecutive points with max of 5-ft spacing between each point
+- would still need to add a point for splitting those lines in the middle of each point cluster
+- ...but still missing the parcel corner boundaries that aren't curved (there are less than those with curves but more than I had noticed)
+- ...so may be better to dissolve all boundaries between parcel polygons, get just the outer boundary of each group of parcels between streets, and then keep all corresponding parcel lines that have more than two vertices...
+
+On analysis of numbers of points and distances between each: find x (5?) or more consecutive distances under 5 feet?
 
 *******
 have curves and should be split:
