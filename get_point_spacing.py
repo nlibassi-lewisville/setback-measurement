@@ -1,7 +1,7 @@
 import arcpy
 import os
 import json
-from shared import set_environment
+from shared import set_environment, drop_field_if_exists, calculate_field_if_exists
 
 
 def add_fields(line_fc):
@@ -101,6 +101,35 @@ def get_curved_lines(line_fc,  distance_threshold=4, point_count_threshold=5):
     arcpy.CopyFeatures_management(curved_lines, curved_lines_fc)
 
 
+def get_centroid_details(line_fc):
+    """
+    Store centroid and true centroid coordinates in new fields of the input feature class.
+    :param line_fc: Input feature class containing lines.
+    :return: Dictionary with OBJECTID as key and centroid coordinates as value.
+    """
+    centroid_fields = ["centroid_x", "centroid_y", "true_centroid_x", "true_centroid_y", "centroid_diff_x", "centroid_diff_y"]
+    for field in centroid_fields:
+        drop_field_if_exists(line_fc, field)
+        arcpy.AddField_management(line_fc, field, "DOUBLE")
+    
+    # update the new fields with centroid and true centroid coordinates
+    arcpy.management.CalculateField(line_fc, "centroid_x", "!Shape!.centroid.x", "PYTHON3")
+    arcpy.management.CalculateField(line_fc, "centroid_y", "!Shape!.centroid.y", "PYTHON3")
+    arcpy.management.CalculateField(line_fc, "true_centroid_x", "!Shape!.truecentroid.x", "PYTHON3")
+    arcpy.management.CalculateField(line_fc, "true_centroid_y", "!Shape!.truecentroid.y", "PYTHON3")
+    arcpy.management.CalculateField(line_fc, "centroid_diff_x", "abs(centroid_x - true_centroid_x)", "PYTHON3")
+    arcpy.management.CalculateField(line_fc, "centroid_diff_y", "abs(centroid_y - true_centroid_y)", "PYTHON3")
+
+    #with arcpy.da.InsertCursor(line_fc, ["SHAPE@", "centroid_x", "centroid_y", "true_centroid_x", "true_centroid_y",]) as cursor:
+    #    for row in cursor:
+    #        centroid = row[0].centroid
+    #        true_centroid = row[0].trueCentroid
+    #        row[1] = centroid.X
+    #        row[2] = centroid.Y
+    #        row[3] = true_centroid.X
+    #        row[4] = true_centroid.Y
+    
+
 def main(line_fc, workspace):
     """Main function that executes all steps."""
     # TODO - check for redundancy in set_environment()
@@ -108,19 +137,23 @@ def main(line_fc, workspace):
     arcpy.env.overwriteOutput = True
 
     # Define intermediate datasets
-    point_fc = os.path.join(workspace, "line_vertices_points_20250204")
-    unique_point_fc = os.path.join(workspace, "unique_line_vertices_20250204")
-    add_fields(line_fc)
-    populate_oid_field(line_fc)
-    convert_lines_to_points(line_fc, point_fc)
-    remove_duplicate_points(point_fc, unique_point_fc)
-    calculate_point_spacing(unique_point_fc, line_fc)
-    get_curved_lines(line_fc, distance_threshold=5, point_count_threshold=5)
+    #point_fc = os.path.join(workspace, "line_vertices_points_20250204")
+    #unique_point_fc = os.path.join(workspace, "unique_line_vertices_20250204")
+    #add_fields(line_fc)
+    #populate_oid_field(line_fc)
+    #convert_lines_to_points(line_fc, point_fc)
+    #remove_duplicate_points(point_fc, unique_point_fc)
+    #calculate_point_spacing(unique_point_fc, line_fc)
+    #get_curved_lines(line_fc, distance_threshold=5, point_count_threshold=5)
+    get_centroid_details(line_fc)
+
     print("Processing completed successfully.")
 
 # Example usage:
 if __name__ == "__main__":
     set_environment()
-    input_line_fc = "parcel_lines_from_polygons_TEST"
+    #input_line_fc = "parcel_lines_from_polygons_TEST"
+    # lines that coincide with parcel "block" boundaries
+    input_line_fc = "parcel_block_boundary_lines"
     workspace = os.getenv("GEODATABASE")
     main(input_line_fc, workspace)
