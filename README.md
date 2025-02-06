@@ -232,6 +232,13 @@ Modified approach to get clusters
 - ...but still missing the parcel corner boundaries that aren't curved (there are less than those with curves but more than I had noticed)
 - ...so may be better to dissolve all boundaries between parcel polygons, get just the outer boundary of each group of parcels between streets, and then keep all corresponding parcel lines that have more than two vertices...
 
+- dissolve worked well to identify parcel 'block' border/boundaries
+- then use centroid vs true centroid test
+- get absolute values of differences between x and y for each above
+- for all lines whose x_diff and y_diff values are not close to zero by some tolerance value (0.5?), split lines at vertices - why did 'Split Line at Point' split into so many lines? (14,245 output lines from 515 input lines) - use Split Lines at Vertices tool?
+- then for short, consecutive lines (representing curves) and the two longer lines on each end, try to create just two lines from many where the split between the two is in the middle
+- lines without curves will be left alone
+
 On analysis of numbers of points and distances between each: find x (5?) or more consecutive distances under 5 feet?
 
 *******
