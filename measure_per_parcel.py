@@ -1,29 +1,9 @@
 import os
-import math
 import arcpy
 import time
 import pandas as pd
 import numpy as np
-from shared import set_environment
-
-
-def calculate_angle(geometry):
-    """
-    Calculate the angle (bearing) between first and last points of a line geometry in degrees, accounting for bidirectional lines.
-    :param geometry: The geometry object of the line.
-    :return: Angle in degrees (0-360).
-    """
-    start = geometry.firstPoint
-    end = geometry.lastPoint
-    dx = end.X - start.X
-    dy = end.Y - start.Y
-    angle = math.degrees(math.atan2(dy, dx))
-    # Normalize to 0-360 degrees
-    angle = angle % 360
-    # Normalize the angle to the range 0-180 (to account for bidirectional lines)
-    if angle > 180:
-        angle -= 180
-    return angle
+from shared import set_environment, calculate_angle
 
 
 def is_parallel(angle1, angle2, tolerance=10):
