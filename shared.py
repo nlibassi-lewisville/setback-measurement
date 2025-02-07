@@ -1,6 +1,7 @@
-import arcpy
 import os
+import math
 from dotenv import load_dotenv
+import arcpy
 import pathlib
 
 def set_environment():
@@ -48,4 +49,23 @@ def calculate_field_if_exists(feature_class, field_name, expression, expression_
             break
     else:
         print(f"Field '{field_name}' does not exist in {feature_class}.")
-        return field_name        
+        return field_name
+
+
+def calculate_angle(geometry):
+    """
+    Calculate the angle (bearing) between first and last points of a line geometry in degrees, accounting for bidirectional lines.
+    :param geometry: The geometry object of the line.
+    :return: Angle in degrees (0-360).
+    """
+    start = geometry.firstPoint
+    end = geometry.lastPoint
+    dx = end.X - start.X
+    dy = end.Y - start.Y
+    angle = math.degrees(math.atan2(dy, dx))
+    # Normalize to 0-360 degrees
+    angle = angle % 360
+    # Normalize the angle to the range 0-180 (to account for bidirectional lines)
+    if angle > 180:
+        angle -= 180
+    return angle           
