@@ -400,3 +400,42 @@ if __name__ == "__main__":
     workspace = os.getenv("GEODATABASE")
     main(input_line_fc, workspace)
 
+# checking some angles - see related screenshots from 2/7
+
+with arcpy.da.SearchCursor("parcel_block_boundary_lines_one_diff_over_0_5_split_at_vertices", ["OBJECTID", "SHAPE@"]) as cursor:
+    for row in cursor:
+        print(f"OID: {row[0]}, angle: {calculate_angle(row[1])}")
+#OID: 3113, angle: 0.47299953129510186
+#OID: 3114, angle: 0.47305639178534875
+#OID: 3115, angle: 135.23034491568555
+#OID: 3116, angle: 89.92880119565746
+with arcpy.da.SearchCursor("parcel_block_boundary_lines_one_diff_over_0_5_split_at_vertices", ["OBJECTID", "SHAPE@"]) as cursor:
+    for row in cursor:
+        print(f"OID: {row[0]}, angle: {calculate_angle(row[1])}")
+#OID: 2576, angle: 90.8883067706756
+#OID: 2577, angle: 85.87634537471742
+#OID: 2578, angle: 75.90097235931594
+#OID: 2579, angle: 65.88636411919363
+#OID: 2580, angle: 55.894308791371174
+#OID: 2581, angle: 45.87296022041196
+#OID: 2582, angle: 35.90399642345096
+#OID: 2583, angle: 25.876050825924032
+#OID: 2584, angle: 15.892794932917578
+#OID: 2585, angle: 5.889306497730227
+#OID: 2586, angle: 0.888986422617461
+with arcpy.da.SearchCursor("parcel_block_boundary_lines_one_diff_over_0_5_split_at_vertices", ["OBJECTID", "SHAPE@"]) as cursor:
+    for row in cursor:
+        print(f"OID: {row[0]}, angle: {calculate_angle(row[1])}")
+#OID: 2563, angle: 4.479241543440202
+#OID: 2564, angle: 3.1560425858000047
+#OID: 2565, angle: 172.67486338760494
+#OID: 2566, angle: 163.084598752487
+#OID: 2567, angle: 153.45750317591097
+#OID: 2568, angle: 143.824766646691
+#OID: 2569, angle: 134.1877134050668
+#OID: 2570, angle: 124.57257101670666
+#OID: 2571, angle: 114.95902480361008
+#OID: 2572, angle: 105.3381652497722
+#OID: 2573, angle: 95.70613422725103
+#OID: 2574, angle: 90.88795255969046
+#OID: 2575, angle: 91.3236303840443
