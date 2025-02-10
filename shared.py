@@ -50,6 +50,18 @@ def calculate_field_if_exists(feature_class, field_name, expression, expression_
     else:
         print(f"Field '{field_name}' does not exist in {feature_class}.")
         return field_name
+    
+# TODO - ensure this works on tables as well
+def drop_feature_class_if_exists(feature_class):
+    """
+    Drop a feature class if it exists.
+    :param feature_class: The feature class to drop.
+    """
+    if arcpy.Exists(feature_class):
+        arcpy.Delete_management(feature_class)
+        print(f"Feature class '{feature_class}' dropped.")
+    else:
+        print(f"Feature class '{feature_class}' does not exist.")
 
 
 def calculate_angle(geometry):
