@@ -3,7 +3,7 @@ import arcpy
 import time
 import pandas as pd
 import numpy as np
-from shared import set_environment, calculate_angle
+from shared import set_environment, calculate_angle, drop_feature_class_if_exists
 
 
 def is_parallel(angle1, angle2, tolerance=10):
@@ -34,9 +34,8 @@ def clip_streets_near_parcel(parcel_fc, parcel_id, street_fc, output_street_fc, 
     arcpy.management.MakeFeatureLayer(parcel_fc, parcel_layer, f"OBJECTID = {parcel_id}")
     
     # TODO - ask for permission to delete output feature class?
-    arcpy.management.Delete(output_street_fc)
-    arcpy.management.Delete("parcel_buffer")
-    print("output_street_fc and parcel_buffer deleted")
+    drop_feature_class_if_exists(output_street_fc)
+    drop_feature_class_if_exists("parcel_buffer")
     #arcpy.management.SelectLayerByAttribute(parcel_fc, "NEW_SELECTION", f"OBJECTID = {parcel_id}")
 
     parcel_buffer = "parcel_buffer"
@@ -69,7 +68,6 @@ def clip_streets_near_parcel(parcel_fc, parcel_id, street_fc, output_street_fc, 
     #    )
 
 
-
 def populate_parallel_field(parcel_street_join_fc, parcel_line_fc, street_name_field, parallel_field, street_fc):
     """
     Populate a field in the parcel-street join table with info on whether or not each segment is parallel to the street.
@@ -87,8 +85,7 @@ def populate_parallel_field(parcel_street_join_fc, parcel_line_fc, street_name_f
 
     #Pre-compute spatial relationships between parcel lines and streets
     #parcel_street_join = os.path.join(gdb_path, "parcel_street_join")
-    if arcpy.Exists(parcel_street_join_fc):
-        arcpy.management.Delete(parcel_street_join_fc)
+    drop_feature_class_if_exists(parcel_street_join_fc)
 
     print("Performing spatial join between parcel lines and streets...")
 
@@ -176,7 +173,6 @@ def process_parcel(parcel_id, all_parcel_polygons_fc, all_parcel_lines_fc, build
     :param output_lines_fc: Path to the combined output parcel line feature class.
     """
     # TODO - clean up naming
-    #arcpy.management.Delete("current_parcel2")
     ## Isolate the current parcel
     #parcel_layer = "current_parcel_test"
     
@@ -277,7 +273,6 @@ def process_parcel(parcel_id, all_parcel_polygons_fc, all_parcel_lines_fc, build
     # Append the near table to the output table
     #print(f"Appending near table to output table for parcel {parcel_id}...")
     #arcpy.management.Append(initial_near_table, output_near_table, "NO_TEST")
-    #arcpy.management.Delete(initial_near_table)  # Clean up in-memory table
 
 
 def transform_near_table_with_street_info(gdb_path, near_table_name, parcel_street_join, street_fc, parcel_line_fc):
@@ -387,8 +382,7 @@ def transform_near_table_with_street_info(gdb_path, near_table_name, parcel_stre
     #transformed_table_path = os.path.join(gdb_path, "transformed_near_table_with_facing_optimized")
     # TODO - update or remove parcel id from name
     transformed_table_path = os.path.join(gdb_path, "transformed_near_table_with_street_info_parcel_TEST")
-    if arcpy.Exists(transformed_table_path):
-        arcpy.management.Delete(transformed_table_path)
+    drop_feature_class_if_exists(transformed_table_path)
 
     arcpy.da.NumPyArrayToTable(output_array, transformed_table_path)
     print(f"Transformed near table written to: {transformed_table_path}")
@@ -446,7 +440,7 @@ def run(building_source_date, parcel_id, all_parcel_lines_fc):
     #transform_near_table_with_street_info(gdb, initial_near_table_name, input_streets, temp_parcel_lines)
     # TODO pass the correct split parcel lines fc in a cleaner way after testing
     split_parcel_lines_fc = os.path.join(feature_dataset, f"split_parcel_lines_{parcel_id}")
-    arcpy.Delete_management(split_parcel_lines_fc)
+    drop_feature_class_if_exists(split_parcel_lines_fc)
     transform_near_table_with_street_info(gdb, initial_near_table_name, parcel_street_join_path, input_streets, split_parcel_lines_fc)
     ## Iterate over each parcel
     #with arcpy.da.SearchCursor(parcel_polygon_fc, ["OBJECTID"]) as cursor:
