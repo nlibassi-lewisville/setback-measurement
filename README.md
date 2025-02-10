@@ -236,13 +236,14 @@ Manually in Pro 2/6-7:
 - dissolve worked well to identify parcel 'block' border/boundaries
 - then used centroid vs true centroid test
 - got absolute values of differences between x and y for each above
-- for all lines whose x_diff and y_diff values are not close to zero by some tolerance value (0.5?), split lines at vertices - why did 'Split Line at Point' split into so many lines? (14,245 output lines from 515 input lines) - use Split Lines at Vertices tool? yes, resulted in 4,591 lines
+- for all lines whose x_diff and y_diff values are not close to zero by some tolerance value (0.5?), split lines at vertices - why did 'Split Line at Point' split into so many lines? (14,245 output lines from 515 input lines) - use Split Lines at Vertices tool? 2/7: yes, resulted in 4,591 lines
 - then for short, consecutive lines (representing curves) and the two longer lines on each end, try to create just two lines from many where the split between the two is in the middle - use modified functions from get_point_spacing.py OR get angles of each segment - if no diff between angles of consecutive segments, combine those two segments (works for straight lines - does that work for segments that make up curves?)
 - lines without curves will be left alone (those that turn without a curve will have a few more breaks than necessary)
 
-Next steps 2/10:
-- [ ] review screenshots from 2/7
-- [ ] modify and test combine_segments.py
+Next steps 2/10-11:
+- [ ] transform and append rows from 'initial near table' for each parcel into single transformed table (overwrite initial near table each time?)
+- [ ] join transformed near table back to buildings
+- [ ] get averages in two categories: those shared and non-shared (or sides facing streets and other sides)
 
 On analysis of numbers of points and distances between each: find x (5?) or more consecutive distances under 5 feet?
 
