@@ -412,7 +412,7 @@ def run(building_source_date, parcel_id, all_parcel_lines_fc):
     # Temporary outputs
     initial_near_table_name = f"initial_near_table_{parcel_id}"
     initial_near_table = os.path.join(gdb, initial_near_table_name)
-    temp_parcel_lines = f"temp_parcel_lines_{parcel_id}"
+    #temp_parcel_lines = f"temp_parcel_lines_{parcel_id}"
 
     # TODO - ensure that temp_parcel_lines is created if needed...
 
