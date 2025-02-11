@@ -439,3 +439,25 @@ with arcpy.da.SearchCursor("parcel_block_boundary_lines_one_diff_over_0_5_split_
 #OID: 2573, angle: 95.70613422725103
 #OID: 2574, angle: 90.88795255969046
 #OID: 2575, angle: 91.3236303840443
+
+
+#merged_df head:
+#IN_FID  parcel_polygon_OID
+#1                1396
+#1                1583
+#1                1439
+#1                1439
+#1                1396
+
+def get_building_parcel_dict(spatial_join_output):
+    """
+
+    """
+    building_parcel_dict = {}
+    with arcpy.da.SearchCursor(spatial_join_output, ["TARGET_FID", "JOIN_FID"]) as cursor:
+        for row in cursor:
+            building_id = row[0]
+            parcel_id = row[1]
+            if building_id not in building_parcel_dict:
+                building_parcel_dict[building_id] = parcel_id
+    return building_parcel_dict
