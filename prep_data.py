@@ -1,6 +1,7 @@
 import os
 import arcpy
 import time
+import pandas as pd
 from shared import set_environment
 
 
@@ -50,7 +51,6 @@ def identify_shared_parcel_boundaries(parcel_polygon_fc, parcel_line_fc, shared_
     field_name = shared_boundary_field
     if not arcpy.ListFields(parcel_line_fc, field_name):
         arcpy.management.AddField(parcel_line_fc, field_name, "SHORT")
-
 
     self_intersect_fc = "parcel_lines_self_intersect"
 
@@ -108,17 +108,108 @@ def identify_shared_parcel_boundaries(parcel_polygon_fc, parcel_line_fc, shared_
     print("Shared boundary identification complete.")
 
 
+# TODO - remove if not used
+def get_parcel_building_join(parcel_polygon_fc, building_polygon_fc, output_fc):
+    """
+    Perform a spatial join between parcel and building polygons.
+    parcel_polygon_fc: Input parcel polygon feature class
+    building_polygon_fc: Input building polygon feature class
+    output_fc: Output feature class for the join result
+    """
+    arcpy.analysis.SpatialJoin(
+    target_features=parcel_polygon_fc,
+    join_features=building_polygon_fc,
+    out_feature_class=output_fc,
+    join_operation="JOIN_ONE_TO_MANY",
+    join_type="KEEP_ALL",
+    match_option="COMPLETELY_CONTAINS",
+    search_radius=None,
+    distance_field_name="",
+    match_fields=None
+    )
+    
+
+def get_building_parcel_join(building_polygon_fc, parcel_polygon_fc, output_fc):
+    """
+    Perform a spatial join between building and parcel polygons.
+    parcel_polygon_fc: Input parcel polygon feature class
+    building_polygon_fc: Input building polygon feature class
+    output_fc: Output feature class for the join result
+    """
+    arcpy.analysis.SpatialJoin(
+        target_features=building_polygon_fc,
+        join_features=parcel_polygon_fc,
+        out_feature_class=output_fc,
+        join_operation="JOIN_ONE_TO_ONE",
+        join_type="KEEP_ALL",
+        match_option="COMPLETELY_WITHIN"
+    )
+
+
+def get_building_parcel_df(spatial_join_output):
+    """
+    Create a dataframe holding building polygon IDs in TARGET_FID field and the id of the parcel in which each building is found in parcel_polygon_OID.
+    :param spatial_join_output: Path to the spatial join output feature class.
+    :return: a pandas dataframe with columns for building polygon IDs and parcel polygon IDs.
+    """
+    # TARGET_FID
+    fields = ["TARGET_FID", "parcel_polygon_OID"]
+    #building_parcel_df = pd.DataFrame(arcpy.da.TableToNumPyArray(spatial_join_output, ["JOIN_FID", "TARGET_FID"]))
+    building_parcel_df = pd.DataFrame(data=arcpy.da.SearchCursor(spatial_join_output, fields))
+    #building_parcel_df.columns = ["building_polygon_OID", "parcel_polygon_OID"]
+    building_parcel_df.columns = ["IN_FID", "parcel_polygon_OID"]
+    return building_parcel_df
+
+
+def match_parcel_ids(parcel_polygon_fc, parcel_line_fc):
+    """
+    Create a table with parcel polygon IDs and the line IDs that make up their boundaries.
+    :param parcel_polygon_fc: Path to the parcel polygon feature class.
+    :param parcel_line_fc: Path to the parcel line feature class.
+    :return: a dictionary with parcel polygon IDs as keys and lists of line IDs as values.
+    """
+    # for parcel_id_dict, keys are parcel polygon IDs, values are lists of line IDs
+    parcel_id_dict = {}
+    # TODO - test performance of this vs use of arcpy.management.SelectLayerByLocation
+    with arcpy.da.SearchCursor(parcel_polygon_fc, ["OBJECTID", "SHAPE@"]) as cursor:
+        for row in cursor:
+            parcel_id = row[0]
+            parcel_geometry = row[1]
+            arcpy.management.SelectLayerByLocation(parcel_line_fc, "INTERSECT", parcel_geometry)
+            with arcpy.da.SearchCursor(parcel_line_fc, ["OBJECTID"]) as line_cursor:
+                for line in line_cursor:
+                    if parcel_id not in parcel_id_dict:
+                        parcel_id_dict[parcel_id] = []
+                        parcel_id_dict[parcel_id].append(line[0])
+            # get the lines that make up the boundary of the parcel
+            #with arcpy.da.SearchCursor(parcel_line_fc, ["OBJECTID", "SHAPE@"]) as line_cursor:
+            #    for line in line_cursor:
+            #        #if parcel_geometry.overlaps(line[1]) or parcel_geometry.crosses(line[1]) or parcel_geometry.touches(line[1]):
+            #        if parcel_geometry.overlaps(line[1]) or parcel_geometry.crosses(line[1]):
+            #            # add line ID to list of line IDs for this parcel
+            #            if parcel_id not in parcel_id_dict:
+            #                parcel_id_dict[parcel_id] = []
+            #            parcel_id_dict[parcel_id].append(line[0])
+    return parcel_id_dict
+
+
 if __name__ == "__main__":
     start_time = time.time()
+    print(f"Preparation of data started at: {time.ctime(start_time)}")
     set_environment()
     parcel_polygon_fc = "parcels_in_zones_r_th_otmu_li_ao"
     parcel_line_fc = "parcel_lines_from_polygons_TEST"
-    create_parcel_line_fc(parcel_polygon_fc, parcel_line_fc, "parcel_polygon_OID")
-    identify_shared_parcel_boundaries(parcel_polygon_fc, parcel_line_fc, "shared_boundary")
-
-    arcpy.management.DeleteIdentical(
-        in_dataset=parcel_line_fc,
-        fields="Shape"
-        )
+    #create_parcel_line_fc(parcel_polygon_fc, parcel_line_fc, "parcel_polygon_OID")
+    #identify_shared_parcel_boundaries(parcel_polygon_fc, parcel_line_fc, "shared_boundary")
+    #arcpy.management.DeleteIdentical(
+    #    in_dataset=parcel_line_fc,
+    #    fields="Shape"
+    #    )
+    ## was created in ArcGIS Pro - not yet run here
+    #building_polygon_fc = "extracted_footprints_nearmap_20240107_in_aoi_and_zones_r_th_otmu_li_ao"
+    #building_parcel_join_fc = "building_parcel_join"
+    #get_building_parcel_join(parcel_polygon_fc, building_polygon_fc, building_parcel_join_fc)
+    test_dict = match_parcel_ids(parcel_polygon_fc, parcel_line_fc)
+    print(test_dict)
 
     print("Total time: {:.2f} seconds".format(time.time() - start_time))
