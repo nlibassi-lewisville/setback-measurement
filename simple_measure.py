@@ -397,7 +397,30 @@ def trim_near_table(near_table, parcel_line_fc, max_side_fields=4):
     return trimmed_near_table
 
 
-# TODO - remove unused parameter
+def get_near_table_with_parcel_info(near_table, parcel_line_fc):
+    parcel_line_df = pd.DataFrame(arcpy.da.TableToNumPyArray(parcel_line_fc, ["parcel_line_OID", "shared_boundary", "parcel_polygon_OID"]))
+    near_table_fields = [f.name for f in arcpy.ListFields(near_table)]
+    print(f"Near table fields: {near_table_fields}")
+    near_array = arcpy.da.TableToNumPyArray(near_table, near_table_fields)
+    near_df = pd.DataFrame(near_array)
+    print("near_df:")
+    print(near_df)
+    # TODO - fix issue below
+    # Merge the near table with the spatial join results to identify adjacent streets
+    #merged_df = near_df.merge(join_df, left_on="NEAR_FID", right_on="PB_FID", how="left")
+    merged_df = near_df.merge(parcel_line_df, left_on="NEAR_FID", right_on="parcel_line_OID", how="left")
+    print("merged_df head:")
+    print(merged_df.head())
+    print("merged_df where IN_FID is 1:")
+    print(merged_df[merged_df["IN_FID"] == 1])
+    print("merged_df where IN_FID is 2:")
+    print(merged_df[merged_df["IN_FID"] == 2])
+    output_fields = [(col, "f8" if "DIST" in col else ("i4" if merged_df[col].dtype.kind in 'i' else "<U50")) for col in merged_df.columns]
+    output_array = np.array([tuple(row) for row in merged_df.to_records(index=False)], dtype=output_fields)
+    output_table = os.path.join(os.getenv("GEODATABASE"), "near_table_with_parcel_info_20250211")
+    arcpy.da.NumPyArrayToTable(output_array, output_table)
+
+
 def transform_near_table_with_street_info(near_table, spatial_join_output):
     """
     Transform near table to include info on adjacent street(s) and other side(s).
@@ -415,34 +438,6 @@ def transform_near_table_with_street_info(near_table, spatial_join_output):
     ##join_df = join_df[join_df["parcel_polygon_OID"] == f"{parcel_id}"]
     #print("join_df:")
     #print(join_df)
-
-    parcel_line_df = pd.DataFrame(arcpy.da.TableToNumPyArray(parcel_line_fc, ["parcel_line_OID", "shared_boundary", "parcel_polygon_OID"]))
-    gdb_path = os.getenv("GEODATABASE")
-
-    # TODO - modify field list after creating dataframe or add placeholder? - passing empty fields here resulted in TypeError: int() argument must be a string, a bytes-like object or a real number, not 'NoneType'
-    #near_table_fields = ['IN_FID', 'NEAR_FID', 'NEAR_DIST', 'NEAR_RANK', 'PARCEL_COMBO_FID', 'BUILDING_COMBO_FID']
-    near_table_fields = [f.name for f in arcpy.ListFields(near_table)]
-    print(f"Near table fields: {near_table_fields}")
-    #near_array = arcpy.da.TableToNumPyArray(near_table, near_table_fields)
-    near_array = arcpy.da.TableToNumPyArray(near_table, near_table_fields)
-    near_df = pd.DataFrame(near_array)
-    print("near_df:")
-    print(near_df)
-
-    # TODO - fix issue below
-    # Merge the near table with the spatial join results to identify adjacent streets
-    #merged_df = near_df.merge(join_df, left_on="NEAR_FID", right_on="PB_FID", how="left")
-
-    merged_df = near_df.merge(parcel_line_df, left_on="NEAR_FID", right_on="parcel_line_OID", how="left")
-
-    print("merged_df head:")
-    print(merged_df.head())
-
-    print("merged_df where IN_FID is 1:")
-    print(merged_df[merged_df["IN_FID"] == 1])
-
-    print("merged_df where IN_FID is 2:")
-    print(merged_df[merged_df["IN_FID"] == 2])
 
     building_parcel_df = get_building_parcel_df(spatial_join_output)
 
@@ -507,7 +502,6 @@ def transform_near_table_with_street_info(near_table, spatial_join_output):
     # Step 4: Convert output to a NumPy structured array and write to a table
     output_df = pd.DataFrame(output_data)
     print(output_df.head())
-
     output_df.fillna(-1, inplace=True)
     output_fields = [(col, "f8" if "DIST" in col else ("i4" if output_df[col].dtype.kind in 'i' else "<U50")) for col in output_df.columns]
     print(f'Output fields: {output_fields}')
@@ -515,6 +509,7 @@ def transform_near_table_with_street_info(near_table, spatial_join_output):
 
     #transformed_table_path = os.path.join(gdb_path, "transformed_near_table_with_facing_optimized")
     # TODO - update or remove parcel id from name
+    gdb_path = os.getenv("GEODATABASE")
     transformed_table_path = os.path.join(gdb_path, "transformed_near_table_with_street_info_parcel_TEST_20250211")
     drop_feature_class_if_exists(transformed_table_path)
 
@@ -538,7 +533,9 @@ def run(building_fc, parcel_line_fc, output_near_table_suffix, spatial_join_outp
     set_environment()
     
     near_table = get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_side_fields=max_side_fields)
-    transform_near_table_with_street_info(near_table, spatial_join_output)
+    near_table_with_parcel_info = get_near_table_with_parcel_info(near_table, parcel_line_fc)
+    # TODO fix and rename transform_near_table_with_street_info() before calling
+    #transform_near_table_with_street_info(near_table, spatial_join_output)
     
     #input_streets = "streets_20241030"
     #gdb = os.getenv("GEODATABASE")
@@ -613,6 +610,6 @@ if __name__ == "__main__":
     building_fc = "extracted_footprints_nearmap_20240107_in_aoi_and_zones_r_th_otmu_li_ao"
     #parcel_line_fc = "split_parcel_lines_in_zones_r_th_otmu_li_ao_20250128"
     parcel_line_fc = "parcel_lines_from_polygons_TEST"
-    #output_near_table_suffix = "nm_20240107_20250211"
+    output_near_table_suffix = "nm_20240107_20250211"
     spatial_join_output = "spatial_join_buildings_completely_within_parcels"
-    run(building_fc, parcel_line_fc, "parcel_building_id", spatial_join_output, max_side_fields=4)
+    run(building_fc, parcel_line_fc, output_near_table_suffix, spatial_join_output, max_side_fields=4)
