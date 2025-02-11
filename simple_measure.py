@@ -344,19 +344,7 @@ def get_parcel_building_dict(spatial_join_output):
     return parcel_building_dict
 
 
-def get_building_parcel_df(spatial_join_output):
-    """
-    Create a dataframe holding building polygon IDs in TARGET_FID field and the id of the parcel in which each building is found in parcel_polygon_OID.
-    :param spatial_join_output: Path to the spatial join output feature class.
-    :return: a pandas dataframe with columns for building polygon IDs and parcel polygon IDs.
-    """
-    # TARGET_FID
-    fields = ["TARGET_FID", "parcel_polygon_OID"]
-    #building_parcel_df = pd.DataFrame(arcpy.da.TableToNumPyArray(spatial_join_output, ["JOIN_FID", "TARGET_FID"]))
-    building_parcel_df = pd.DataFrame(data=arcpy.da.SearchCursor(spatial_join_output, fields))
-    #building_parcel_df.columns = ["building_polygon_OID", "parcel_polygon_OID"]
-    building_parcel_df.columns = ["IN_FID", "parcel_polygon_OID"]
-    return building_parcel_df
+
 
 
 def trim_near_table(near_table, parcel_line_fc, max_side_fields=4):
