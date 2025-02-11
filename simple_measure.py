@@ -282,6 +282,7 @@ def get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_si
     :param building_fc - string: Path to the building feature class.
     :param parcel_line_fc - string: Path to the parcel line feature class.
     :param output_near_table_suffix - string: Suffix to append to the output near table name.
+    :param parcel_building_id_field - string: Name of the field to hold the parcel polygon ID followed by building polygon ID.
     :param max_side_fields - int: Maximum number of fields to add to the near table for holding info on parcel boundary sides.
     :return: Path to the near table.
     """
@@ -295,7 +296,7 @@ def get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_si
         location="NO_LOCATION",
         angle="NO_ANGLE",
         closest="ALL",
-        closest_count=8,
+        closest_count=20,
         method="PLANAR",
         distance_unit="Feet"
     )
@@ -315,14 +316,93 @@ def get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_si
         arcpy.management.CalculateField(near_table, f"OTHER_SIDE_{i}_PB_FID", -1, "PYTHON3")
         arcpy.management.CalculateField(near_table, f"OTHER_SIDE_{i}_DIST_FT", -1, "PYTHON3")
 
+    # TODO - remove if not needed
+    # create a new field to hold the parcel polygon ID followed by building polygon ID in format '1583-1', '1583-7', etc.
+    #arcpy.management.AddField(near_table, parcel_building_id_field, "TEXT")
+    #arcpy.management.CalculateField(near_table, parcel_building_id_field, -1, "PYTHON3")
+
     return near_table
 
 
-def transform_near_table_with_street_info(near_table):
+# TODO - remove if not needed
+def get_parcel_building_dict(spatial_join_output):
+    """
+    Create a dictionary mapping parcel polygon IDs to building polygon IDs.
+    :param spatial_join_output: Path to the spatial join output feature class.
+    :return: Dictionary with 
+        keys: parcel polygon IDs as keys
+        values: a list of IDs of buildings contained by parcels.
+    """
+    parcel_building_dict = {}
+    with arcpy.da.SearchCursor(spatial_join_output, ["TARGET_FID", "JOIN_FID"]) as cursor:
+        for row in cursor:
+            parcel_id = row[0]
+            building_id = row[1]
+            if parcel_id not in parcel_building_dict:
+                parcel_building_dict[parcel_id] = []
+            parcel_building_dict[parcel_id].append(building_id)
+    return parcel_building_dict
+
+
+def get_building_parcel_df(spatial_join_output):
+    """
+    Create a dataframe holding building polygon IDs in TARGET_FID field and the id of the parcel in which each building is found in parcel_polygon_OID.
+    :param spatial_join_output: Path to the spatial join output feature class.
+    :return: a pandas dataframe with columns for building polygon IDs and parcel polygon IDs.
+    """
+    # TARGET_FID
+    fields = ["TARGET_FID", "parcel_polygon_OID"]
+    #building_parcel_df = pd.DataFrame(arcpy.da.TableToNumPyArray(spatial_join_output, ["JOIN_FID", "TARGET_FID"]))
+    building_parcel_df = pd.DataFrame(data=arcpy.da.SearchCursor(spatial_join_output, fields))
+    #building_parcel_df.columns = ["building_polygon_OID", "parcel_polygon_OID"]
+    building_parcel_df.columns = ["IN_FID", "parcel_polygon_OID"]
+    return building_parcel_df
+
+
+def trim_near_table(near_table, parcel_line_fc, max_side_fields=4):
+    """
+    Trim the near table to include only the nearest parcel lines.
+    :param near_table: Path to the near table.
+    :param parcel_line_fc: Path to the parcel line feature class.
+    :param max_side_fields: Maximum number of fields to add to the near table for holding info on parcel boundary sides.
+    :return: Path to the trimmed near table.
+    """
+    print("Trimming near table...")
+    # Create a copy of the near table
+    trimmed_near_table = os.path.join(os.getenv("GEODATABASE"), "trimmed_near_table")
+    arcpy.management.CopyRows(near_table, trimmed_near_table)
+
+    # Add fields for facing street and other side
+    for i in range(1, max_side_fields + 1):
+        arcpy.management.AddField(trimmed_near_table, f"FACING_STREET_{i}", "TEXT")
+        arcpy.management.AddField(trimmed_near_table, f"FACING_STREET_{i}_DIST_FT", "FLOAT")
+        arcpy.management.AddField(trimmed_near_table, f"OTHER_SIDE_{i}_PB_FID", "LONG")
+        arcpy.management.AddField(trimmed_near_table, f"OTHER_SIDE_{i}_DIST_FT", "FLOAT")
+
+        arcpy.management.CalculateField(trimmed_near_table, f"FACING_STREET_{i}", -1, "PYTHON3")
+        arcpy.management.CalculateField(trimmed_near_table, f"FACING_STREET_{i}_DIST_FT", -1, "PYTHON3")
+        arcpy.management.CalculateField(trimmed_near_table, f"OTHER_SIDE_{i}_PB_FID", -1, "PYTHON3")
+        arcpy.management.CalculateField(trimmed_near_table, f"OTHER_SIDE_{i}_DIST_FT", -1, "PYTHON3")
+
+    # Remove duplicate rows based on IN_FID and NEAR_RANK
+    with arcpy.da.UpdateCursor(trimmed_near_table, ["IN_FID", "NEAR_RANK"]) as cursor:
+        for row in cursor:
+            in_fid = row[0]
+            near_rank = row[1]
+            if near_rank > 1:
+                cursor.deleteRow()
+            else:
+                cursor.updateRow(row)
+
+    return trimmed_near_table
+
+
+# TODO - remove unused parameter
+def transform_near_table_with_street_info(near_table, spatial_join_output):
     """
     Transform near table to include info on adjacent street(s) and other side(s).
     :param near_table_name: Path to the near table.
-    :param parcel_street_join: Path to feature class resulting from join of parcel line feature class with streets feature class.
+    :param spatial_join_output: Path to the spatial join output feature class.
     :return: Path to the transformed near table.
     """
     print("Transforming near table to include info on adjacent street(s) and other side(s)...")
@@ -354,9 +434,28 @@ def transform_near_table_with_street_info(near_table):
     #merged_df = near_df.merge(join_df, left_on="NEAR_FID", right_on="PB_FID", how="left")
 
     merged_df = near_df.merge(parcel_line_df, left_on="NEAR_FID", right_on="parcel_line_OID", how="left")
+
+    print("merged_df head:")
+    print(merged_df.head())
+
+    print("merged_df where IN_FID is 1:")
+    print(merged_df[merged_df["IN_FID"] == 1])
+
+    print("merged_df where IN_FID is 2:")
+    print(merged_df[merged_df["IN_FID"] == 2])
+
+    building_parcel_df = get_building_parcel_df(spatial_join_output)
+
+    #filtered_merged_df = merged_df.merge(building_parcel_df, left_on="IN_FID", right_on="JOIN_FID", how="left")
+    # retain only those rows where 
+    #filtered_merged_df = merged_df.merge(building_parcel_df, left_on="IN_FID", right_on="parcel_polygon_OID", how="inner")
+    #filtered_merged_df = merged_df.merge(building_parcel_df, on=["TARGET_FID", "parcel_polygon_OID"], how="inner")
+    filtered_merged_df = merged_df.merge(building_parcel_df, on=["IN_FID", "parcel_polygon_OID"], how="inner")
+    #merged_df[parcel_building_id_field] = merged_df["parcel_polygon_OID"].astype(str) + "-" + merged_df["IN_FID"].astype(str)
     #merged_df["is_facing_street"] = (merged_df["STREET_NAME"].notna()) & (merged_df["is_parallel_to_street"] == 1) & (merged_df["shared_boundary"] == 0)
     #print("merged_df after adding field 'is_facing_street':")
-    #print(merged_df)
+    print("filtered_merged_df head:")
+    print(filtered_merged_df.head())
     ## Drop duplicate records based on NEAR_DIST, PARCEL_COMBO_FID, and STREET_NAME
     ## TODO may or may not need this step
     #merged_df = merged_df.drop_duplicates(subset=["NEAR_DIST", "PARCEL_COMBO_FID", "STREET_NAME"])
@@ -383,7 +482,7 @@ def transform_near_table_with_street_info(near_table):
 
     # Step 3: Populate fields for adjacent streets and other sides
     output_data = []
-    for in_fid, group in merged_df.groupby("IN_FID"):
+    for in_fid, group in filtered_merged_df.groupby("IN_FID"):
         row = {"IN_FID": in_fid}
         facing_count, other_count = 1, 1
         for _, record in group.iterrows():
@@ -424,12 +523,13 @@ def transform_near_table_with_street_info(near_table):
     return transformed_table_path
 
 
-def run(building_fc, parcel_line_fc, output_near_table_suffix):
+def run(building_fc, parcel_line_fc, output_near_table_suffix, spatial_join_output, max_side_fields=4):
     """
     Run the process to measure distances between buildings and parcels.
     :param building_fc - string: Path to the building feature class.
     :param parcel_line_fc - string: Path to the parcel line feature class.
     :param output_near_table_suffix - string: Suffix to append to the output near table name.
+    :param spatial_join_output: Path to the spatial join output feature class.
     :param parcel_street_join - string: Path to feature class resulting from join of parcel line feature class with streets feature class.
     """
     start_time = time.time()
@@ -437,8 +537,8 @@ def run(building_fc, parcel_line_fc, output_near_table_suffix):
     # set environment to feature dataset
     set_environment()
     
-    near_table = get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_side_fields=4)
-    transform_near_table_with_street_info(near_table)
+    near_table = get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_side_fields=max_side_fields)
+    transform_near_table_with_street_info(near_table, spatial_join_output)
     
     #input_streets = "streets_20241030"
     #gdb = os.getenv("GEODATABASE")
@@ -513,5 +613,6 @@ if __name__ == "__main__":
     building_fc = "extracted_footprints_nearmap_20240107_in_aoi_and_zones_r_th_otmu_li_ao"
     #parcel_line_fc = "split_parcel_lines_in_zones_r_th_otmu_li_ao_20250128"
     parcel_line_fc = "parcel_lines_from_polygons_TEST"
-    output_near_table_suffix = "nm_20240107_20250211"
-    run(building_fc, parcel_line_fc, output_near_table_suffix)
+    #output_near_table_suffix = "nm_20240107_20250211"
+    spatial_join_output = "spatial_join_buildings_completely_within_parcels"
+    run(building_fc, parcel_line_fc, "parcel_building_id", spatial_join_output, max_side_fields=4)
