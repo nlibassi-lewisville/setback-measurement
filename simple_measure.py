@@ -373,6 +373,7 @@ def get_near_table_with_parcel_info(near_table, parcel_line_fc):
     output_fields = [(col, "f8" if "DIST" in col else ("i4" if merged_df[col].dtype.kind in 'i' else "<U50")) for col in merged_df.columns]
     output_array = np.array([tuple(row) for row in merged_df.to_records(index=False)], dtype=output_fields)
     output_table = os.path.join(os.getenv("GEODATABASE"), "near_table_with_parcel_info_20250212")
+    drop_feature_class_if_exists(output_table)
     arcpy.da.NumPyArrayToTable(output_array, output_table)
     return output_table
 
@@ -582,17 +583,16 @@ def run(building_fc, parcel_line_fc, output_near_table_suffix, spatial_join_outp
     set_environment()
     
     # TODO - uncomment after testing other functions
-    #near_table = get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_side_fields=max_side_fields)
-    #near_table_with_parcel_info = get_near_table_with_parcel_info(near_table, parcel_line_fc)
+    near_table = get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_side_fields=max_side_fields)
+    near_table_with_parcel_info = get_near_table_with_parcel_info(near_table, parcel_line_fc)
 
     building_parcel_join_fc = "buildings_with_parcel_ids"
     gdb_path = os.getenv("GEODATABASE")
     near_table_with_parcel_info = os.path.join(gdb_path, "near_table_with_parcel_info_20250212")
     parcel_id_table = os.path.join(gdb_path, "parcel_id_table_20250212")
     # TODO - uncomment after testing other functions and remove hardcoded paths
-    #trimmed_near_table = trim_near_table(near_table_with_parcel_info, building_parcel_join_fc, parcel_id_table)
+    trimmed_near_table = trim_near_table(near_table_with_parcel_info, building_parcel_join_fc, parcel_id_table)
     trimmed_near_table = os.path.join(gdb_path, "updated_trimmed_near_table_with_parcel_info")
-
     transform_detailed_near_table(trimmed_near_table, "trimmed_near_table_with_parcel_info")
 
     # TODO fix and rename transform_near_table_with_street_info() before calling
@@ -653,21 +653,6 @@ def run(building_fc, parcel_line_fc, output_near_table_suffix, spatial_join_outp
 if __name__ == "__main__":
     # TODO - remove lines below after testing parallel field population
     set_environment()
-    #street_fc = "streets_20241030"
-    #clipped_street_fc = "clipped_streets_near_parcel_62"
-    #clip_streets_near_parcel("parcels_in_zones_r_th_otmu_li_ao", 62, street_fc, clipped_street_fc, buffer_ft=30)
-    #gdb = os.getenv("GEODATABASE")
-    #parcel_street_join_path = os.path.join(gdb, "parcel_street_join")
-    #populate_parallel_field(parcel_street_join_path, "StFULLName", "is_parallel_to_street", street_fc=clipped_street_fc)
-    #run("20240107", 62, "parcel_lines_from_polygons_TEST")
-    #run("20240107", 52, "parcel_lines_from_polygons_TEST")
-    #run("20240107", 1295, "parcel_lines_from_polygons_TEST")
-
-    # rounded corner lot - works well despite rounded segment being broken into an excessive number of segments
-    #run("20240107", 219, "split_parcel_lines_in_zones_r_th_otmu_li_ao_20250128")
-    # TODO - test after normal corner lot parcel with rounded lines
-    #run("20240107", 1295, "split_parcel_lines_in_zones_r_th_otmu_li_ao_20250128")
-    #run("20240107", 1618, "split_parcel_lines_in_zones_r_th_otmu_li_ao_20250128")
     building_fc = "extracted_footprints_nearmap_20240107_in_aoi_and_zones_r_th_otmu_li_ao"
     #parcel_line_fc = "split_parcel_lines_in_zones_r_th_otmu_li_ao_20250128"
     parcel_line_fc = "parcel_lines_from_polygons_TEST"
