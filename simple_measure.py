@@ -392,12 +392,11 @@ def trim_near_table(near_table, building_parcel_join_fc, parcel_id_table):
     # new field must be added before creating a table view
     arcpy.management.AddField(trimmed_near_table, "intended_parcel_polygon_OID", "LONG")
 
+    # Create views from tables and necesary layer from feature class
     trimmed_near_table_view = "trimmed_near_table_view"
     arcpy.management.MakeTableView(trimmed_near_table, trimmed_near_table_view)
-
     parcel_id_table_view = "parcel_id_table_view"
     arcpy.management.MakeTableView(parcel_id_table, parcel_id_table_view)
-
     building_parcel_join_layer = "building_parcel_join_layer"
     arcpy.management.MakeFeatureLayer(building_parcel_join_fc, building_parcel_join_layer)
 
