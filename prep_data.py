@@ -2,6 +2,7 @@ import os
 import arcpy
 import time
 import pandas as pd
+import numpy as np
 from shared import set_environment
 
 
@@ -161,12 +162,12 @@ def get_building_parcel_df(spatial_join_output):
     return building_parcel_df
 
 
-def match_parcel_ids(parcel_polygon_fc, parcel_line_fc):
+def get_parcel_id_table(parcel_polygon_fc, parcel_line_fc, output_table):
     """
     Create a table with parcel polygon IDs and the line IDs that make up their boundaries.
     :param parcel_polygon_fc: Path to the parcel polygon feature class.
     :param parcel_line_fc: Path to the parcel line feature class.
-    :return: a dictionary with parcel polygon IDs as keys and lists of line IDs as values.
+    :param output_table: Path to the output table.
     """
     # must pass layer (not fc) to SelectLayerByLocation to get expected results (not all features) in standalone script
     parcel_line_layer = "parcel_line_layer"
@@ -178,15 +179,20 @@ def match_parcel_ids(parcel_polygon_fc, parcel_line_fc):
         for row in cursor:
             parcel_id = row[0]
             parcel_geometry = row[1]
-            print(f"length of parcel_geometry: {len(parcel_geometry)}")
+            #print(f"length of parcel_geometry: {len(parcel_geometry)}")
             arcpy.management.SelectLayerByLocation(parcel_line_layer, "SHARE_A_LINE_SEGMENT_WITH", parcel_geometry, search_distance="300 Feet")
             selected_count = arcpy.management.GetCount(parcel_line_layer)[0]
-            print(f"Selected {selected_count} lines.")
+            #print(f"Selected {selected_count} lines.")
             with arcpy.da.SearchCursor(parcel_line_layer, ["OBJECTID"]) as line_cursor:
                 for line in line_cursor:
                     if parcel_id not in parcel_id_dict:
                         parcel_id_dict[parcel_id] = []
                     parcel_id_dict[parcel_id].append(line[0])
+
+    table_fields = [("parcel_polygon_OID", "i4"), ("parcel_line_OIDs", "U100")]
+    table_data = np.array([(k, str(v)) for k, v in parcel_id_dict.items()], dtype=table_fields)
+    arcpy.da.NumPyArrayToTable(table_data, output_table)
+    print(f"Parcel ID table created at {output_table}.")
     # TODO - create table from dict
             # get the lines that make up the boundary of the parcel
             #with arcpy.da.SearchCursor(parcel_line_fc, ["OBJECTID", "SHAPE@"]) as line_cursor:
@@ -197,17 +203,18 @@ def match_parcel_ids(parcel_polygon_fc, parcel_line_fc):
             #            if parcel_id not in parcel_id_dict:
             #                parcel_id_dict[parcel_id] = []
             #            parcel_id_dict[parcel_id].append(line[0])
-    return parcel_id_dict
+
 
 
 if __name__ == "__main__":
     start_time = time.time()
     print(f"Preparation of data started at: {time.ctime(start_time)}")
     set_environment()
-    #parcel_polygon_fc = "parcels_in_zones_r_th_otmu_li_ao"
-    parcel_polygon_fc = "subset_parcels_in_zones_r_th_otmu_li_ao_20250212"
-    #parcel_line_fc = "parcel_lines_from_polygons_TEST"
-    parcel_line_fc = "subset_parcel_lines_from_polygons_TEST_20250212"
+    parcel_polygon_fc = "parcels_in_zones_r_th_otmu_li_ao"
+    #parcel_polygon_fc = "subset_parcels_in_zones_r_th_otmu_li_ao_20250212"
+    parcel_line_fc = "parcel_lines_from_polygons_TEST"
+    #parcel_line_fc = "subset_parcel_lines_from_polygons_TEST_20250212"
+    parcel_id_table = os.path.join(os.getenv("GEODATABASE"), "parcel_id_table_20250212")
     #create_parcel_line_fc(parcel_polygon_fc, parcel_line_fc, "parcel_polygon_OID")
     #identify_shared_parcel_boundaries(parcel_polygon_fc, parcel_line_fc, "shared_boundary")
     #arcpy.management.DeleteIdentical(
@@ -216,9 +223,10 @@ if __name__ == "__main__":
     #    )
     ## was created in ArcGIS Pro - not yet run here
     #building_polygon_fc = "extracted_footprints_nearmap_20240107_in_aoi_and_zones_r_th_otmu_li_ao"
+    # for testing building_parcel_join use existing "buildings_with_parcel_ids"?
     #building_parcel_join_fc = "building_parcel_join"
     #get_building_parcel_join(parcel_polygon_fc, building_polygon_fc, building_parcel_join_fc)
-    test_dict = match_parcel_ids(parcel_polygon_fc, parcel_line_fc)
-    print(test_dict)
+    get_parcel_id_table(parcel_polygon_fc, parcel_line_fc, parcel_id_table)
+
 
     print("Total time: {:.2f} seconds".format(time.time() - start_time))
