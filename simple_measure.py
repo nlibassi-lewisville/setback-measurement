@@ -286,17 +286,18 @@ def get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_si
     :param max_side_fields - int: Maximum number of fields to add to the near table for holding info on parcel boundary sides.
     :return: Path to the near table.
     """
+    # TODO - add param for closest_count - 20 was not enough when using 150 feet search radius - 2/12 12:03p: have not tried 30 with 300 feet search radius
     print("Generating near table...")
     near_table = os.path.join(os.getenv("GEODATABASE"), f"near_table_{output_near_table_suffix}")
     arcpy.analysis.GenerateNearTable(
         in_features=building_fc,
         near_features=parcel_line_fc,
         out_table=near_table,
-        search_radius="150 Feet",
+        search_radius="300 Feet",
         location="NO_LOCATION",
         angle="NO_ANGLE",
         closest="ALL",
-        closest_count=20,
+        closest_count=30,
         method="PLANAR",
         distance_unit="Feet"
     )
@@ -345,47 +346,13 @@ def get_parcel_building_dict(spatial_join_output):
 
 
 
-
-
-def trim_near_table(near_table, parcel_line_fc, max_side_fields=4):
+def get_near_table_with_parcel_info(near_table, parcel_line_fc):
     """
-    Trim the near table to include only the nearest parcel lines.
+    Join near table with table from parcel line feature class to get parcel line and polygon IDs as well as shared boundary info.
     :param near_table: Path to the near table.
     :param parcel_line_fc: Path to the parcel line feature class.
-    :param max_side_fields: Maximum number of fields to add to the near table for holding info on parcel boundary sides.
-    :return: Path to the trimmed near table.
+    :return: Path to the near table with parcel info.
     """
-    print("Trimming near table...")
-    # Create a copy of the near table
-    trimmed_near_table = os.path.join(os.getenv("GEODATABASE"), "trimmed_near_table")
-    arcpy.management.CopyRows(near_table, trimmed_near_table)
-
-    # Add fields for facing street and other side
-    for i in range(1, max_side_fields + 1):
-        arcpy.management.AddField(trimmed_near_table, f"FACING_STREET_{i}", "TEXT")
-        arcpy.management.AddField(trimmed_near_table, f"FACING_STREET_{i}_DIST_FT", "FLOAT")
-        arcpy.management.AddField(trimmed_near_table, f"OTHER_SIDE_{i}_PB_FID", "LONG")
-        arcpy.management.AddField(trimmed_near_table, f"OTHER_SIDE_{i}_DIST_FT", "FLOAT")
-
-        arcpy.management.CalculateField(trimmed_near_table, f"FACING_STREET_{i}", -1, "PYTHON3")
-        arcpy.management.CalculateField(trimmed_near_table, f"FACING_STREET_{i}_DIST_FT", -1, "PYTHON3")
-        arcpy.management.CalculateField(trimmed_near_table, f"OTHER_SIDE_{i}_PB_FID", -1, "PYTHON3")
-        arcpy.management.CalculateField(trimmed_near_table, f"OTHER_SIDE_{i}_DIST_FT", -1, "PYTHON3")
-
-    # Remove duplicate rows based on IN_FID and NEAR_RANK
-    with arcpy.da.UpdateCursor(trimmed_near_table, ["IN_FID", "NEAR_RANK"]) as cursor:
-        for row in cursor:
-            in_fid = row[0]
-            near_rank = row[1]
-            if near_rank > 1:
-                cursor.deleteRow()
-            else:
-                cursor.updateRow(row)
-
-    return trimmed_near_table
-
-
-def get_near_table_with_parcel_info(near_table, parcel_line_fc):
     parcel_line_df = pd.DataFrame(arcpy.da.TableToNumPyArray(parcel_line_fc, ["parcel_line_OID", "shared_boundary", "parcel_polygon_OID"]))
     near_table_fields = [f.name for f in arcpy.ListFields(near_table)]
     print(f"Near table fields: {near_table_fields}")
@@ -405,8 +372,139 @@ def get_near_table_with_parcel_info(near_table, parcel_line_fc):
     print(merged_df[merged_df["IN_FID"] == 2])
     output_fields = [(col, "f8" if "DIST" in col else ("i4" if merged_df[col].dtype.kind in 'i' else "<U50")) for col in merged_df.columns]
     output_array = np.array([tuple(row) for row in merged_df.to_records(index=False)], dtype=output_fields)
-    output_table = os.path.join(os.getenv("GEODATABASE"), "near_table_with_parcel_info_20250211")
+    output_table = os.path.join(os.getenv("GEODATABASE"), "near_table_with_parcel_info_20250212")
     arcpy.da.NumPyArrayToTable(output_array, output_table)
+    return output_table
+
+
+def trim_near_table(near_table, building_parcel_join_fc, parcel_id_table):
+    """
+    Trim the near table to include only the nearest parcel lines.
+    :param near_table: Path to the near table (that includes parcel info).
+    :param building_parcel_join_fc: Path to the feature class that links each building polygon ID to the ID of the parcel polygon it is contained by.
+    :param parcel_id_table: Path to the table that links each parcel polygon OID to the parcel line OIDs that share a boundary with the given polygon.
+    :return: Path to the trimmed near table.
+    """
+    print("Trimming near table...")
+    # Create a copy of the near table
+    trimmed_near_table = os.path.join(os.getenv("GEODATABASE"), "trimmed_near_table_with_parcel_info")
+    arcpy.management.CopyRows(near_table, trimmed_near_table)
+    # new field must be added before creating a table view
+    arcpy.management.AddField(trimmed_near_table, "intended_parcel_polygon_OID", "LONG")
+
+    trimmed_near_table_view = "trimmed_near_table_view"
+    arcpy.management.MakeTableView(trimmed_near_table, trimmed_near_table_view)
+
+    parcel_id_table_view = "parcel_id_table_view"
+    arcpy.management.MakeTableView(parcel_id_table, parcel_id_table_view)
+
+    building_parcel_join_layer = "building_parcel_join_layer"
+    arcpy.management.MakeFeatureLayer(building_parcel_join_fc, building_parcel_join_layer)
+
+    # join to get parcel ids that correspond to buildings
+    # building polygon ID is: 
+    #   IN_FID of near table and 
+    #   TARGET_FID of buildings_with_parcel_ids
+    arcpy.management.AddJoin(
+        in_layer_or_view=trimmed_near_table_view,
+        in_field="IN_FID",
+        join_table=building_parcel_join_layer,
+        join_field="TARGET_FID",
+        join_type="KEEP_ALL",
+        index_join_fields="NO_INDEX_JOIN_FIELDS",
+        rebuild_index="NO_REBUILD_INDEX",
+        join_operation=""
+    )
+    test_join_table = os.path.join(os.getenv("GEODATABASE"), "test_trimmed_near_table_after_first_join")
+    arcpy.management.CopyRows(trimmed_near_table_view, test_join_table)
+
+    fields = arcpy.ListFields(test_join_table)
+    print(f"Fields in trimmed_near_table_view after FIRST join: {[f.name for f in fields]}")
+
+    #fields = arcpy.ListFields(trimmed_near_table)
+    #print(f"Fields in trimmed_near_table after first join: {[f.name for f in fields]}")
+    #print(f"Aliases in trimmed_near_table after first join: {[f.aliasName for f in fields]}")
+
+    # why was original field_type TEXT here?
+    # TODO - may need to modify expression and/or modify name of field named "OBJECTID_1" in near table
+    arcpy.management.CalculateField(
+        in_table=trimmed_near_table_view,
+        field="intended_parcel_polygon_OID",
+        #expression="!OBJECTID_1!",
+        expression="int(!buildings_with_parcel_ids.enclosing_parcel_polygon_oid!)",
+        expression_type="PYTHON3",
+        code_block="",
+        field_type="LONG",
+        enforce_domains="NO_ENFORCE_DOMAINS"
+    )
+    print("intended_parcel_polygon_OID field UPDATED in trimmed_near_table_view!!!!!")
+
+    print(f"trimmed_near_table: {trimmed_near_table}")
+    trimmed_near_table_name = trimmed_near_table.split("\\")[-1]
+    parcel_polygon_OID_field = f"{trimmed_near_table_name}.intended_parcel_polygon_OID"  
+
+    # print first row for debugging
+    fields = arcpy.ListFields(trimmed_near_table_view)
+    print(f"Fields in trimmed_near_table_view after first join: {[f.name for f in fields]}")
+    print("first row of trimmed_near_table_view after first join:")
+    with arcpy.da.SearchCursor(trimmed_near_table_view, [f.name for f in fields]) as cursor:
+        for row in cursor:
+            print(row)
+            break
+    print("first value in field trimmed_near_table_with_parcel_info.intended_parcel_polygon_OID of trimmed_near_table_view:")
+    with arcpy.da.SearchCursor(trimmed_near_table_view, "trimmed_near_table_with_parcel_info.intended_parcel_polygon_OID") as cursor:
+        for row in cursor:
+            print(row)
+            break
+    # could work but these are apparently strings e.g. '1583'
+    alternate_in_field = 'buildings_with_parcel_ids.enclosing_parcel_polygon_oid'
+    alternate_in_field_2 = 'trimmed_near_table_with_parcel_info.intended_parcel_polygon_OID'
+    # format of field names after having been copied to a new table
+    #alternate_in_field = "buildings_with_parcel_ids_enclosing_parcel_polygon_oid"
+    # TODO clean up dirty field names!!
+    arcpy.management.AddJoin(
+        in_layer_or_view=trimmed_near_table_view,
+        #in_field=parcel_polygon_OID_field,
+        in_field=alternate_in_field_2,
+        join_table=parcel_id_table_view,
+        join_field="parcel_polygon_OID",
+        join_type="KEEP_ALL",
+        index_join_fields="NO_INDEX_JOIN_FIELDS",
+        rebuild_index="NO_REBUILD_INDEX",
+        join_operation="JOIN_ONE_TO_MANY"
+    )
+    fields = arcpy.ListFields(parcel_id_table_view)
+    print("first row of parcel_id_table_view:")
+    with arcpy.da.SearchCursor(parcel_id_table_view, [f.name for f in fields]) as cursor:
+        for row in cursor:
+            print(row)
+            break
+
+    trimmed_near_table_2 = os.path.join(os.getenv("GEODATABASE"), "updated_trimmed_near_table_with_parcel_info")
+    arcpy.management.CopyRows(trimmed_near_table_view, trimmed_near_table_2)
+    fields = arcpy.ListFields(trimmed_near_table_2)
+    print(f"\nFields in trimmed_near_table_2 after second join: {[f.name for f in fields]}")
+    # TODO - get full names of fields modified due to join?
+    #iterate through the rows in the near table and remove rows where value in parcel_line_OID column is not in list in parcel_line_OIDs
+
+    # expecting'trimmed_near_table_with_parcel_info_parcel_line_OID' below
+    parcel_line_OID_field = f"{trimmed_near_table_name}_parcel_line_OID"
+    parcel_id_table_name = parcel_id_table.split("\\")[-1]
+    print(f"parcel_id_table_name: {parcel_id_table_name}")
+    # expecting 'parcel_id_table_20250212_parcel_line_OIDs' below
+    parcel_line_OIDs_field = f"{parcel_id_table_name}_parcel_line_OIDs" 
+    #parcel_line_OIDs_field = f"{parcel_id_table_name}.parcel_line_OIDs" 
+    print(f"field used in update cursor for parcel line OIDs: {parcel_line_OIDs_field}")
+    with arcpy.da.UpdateCursor(trimmed_near_table_2, [parcel_line_OID_field, parcel_line_OIDs_field]) as cursor:
+        for row in cursor:
+            print(f"row: {row}")
+            parcel_line_OID = row[0]
+            parcel_line_OIDs = row[1]
+            if str(parcel_line_OID) not in parcel_line_OIDs:
+                cursor.deleteRow()
+
+    print(f"check state of trimmed_near_table at: {trimmed_near_table}")
+    return trimmed_near_table
 
 
 def transform_near_table_with_street_info(near_table, spatial_join_output):
@@ -520,8 +618,16 @@ def run(building_fc, parcel_line_fc, output_near_table_suffix, spatial_join_outp
     # set environment to feature dataset
     set_environment()
     
-    near_table = get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_side_fields=max_side_fields)
-    near_table_with_parcel_info = get_near_table_with_parcel_info(near_table, parcel_line_fc)
+    # TODO - uncomment after testing other functions
+    #near_table = get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_side_fields=max_side_fields)
+    #near_table_with_parcel_info = get_near_table_with_parcel_info(near_table, parcel_line_fc)
+
+    building_parcel_join_fc = "buildings_with_parcel_ids"
+    gdb_path = os.getenv("GEODATABASE")
+    near_table_with_parcel_info = os.path.join(gdb_path, "near_table_with_parcel_info_20250212")
+    parcel_id_table = os.path.join(gdb_path, "parcel_id_table_20250212")
+    trimmed_near_table = trim_near_table(near_table_with_parcel_info, building_parcel_join_fc, parcel_id_table)
+
     # TODO fix and rename transform_near_table_with_street_info() before calling
     #transform_near_table_with_street_info(near_table, spatial_join_output)
     
