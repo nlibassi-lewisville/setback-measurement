@@ -480,7 +480,8 @@ def trim_near_table(near_table, building_parcel_join_fc, parcel_id_table):
             print(row)
             break
 
-    trimmed_near_table_2 = os.path.join(os.getenv("GEODATABASE"), "updated_trimmed_near_table_with_parcel_info")
+    trimmed_near_table_2_name = "updated_trimmed_near_table_with_parcel_info"
+    trimmed_near_table_2 = os.path.join(os.getenv("GEODATABASE"), trimmed_near_table_2_name)
     arcpy.management.CopyRows(trimmed_near_table_view, trimmed_near_table_2)
     fields = arcpy.ListFields(trimmed_near_table_2)
     print(f"\nFields in trimmed_near_table_2 after second join: {[f.name for f in fields]}")
@@ -497,26 +498,32 @@ def trim_near_table(near_table, building_parcel_join_fc, parcel_id_table):
     print(f"field used in update cursor for parcel line OIDs: {parcel_line_OIDs_field}")
     with arcpy.da.UpdateCursor(trimmed_near_table_2, [parcel_line_OID_field, parcel_line_OIDs_field]) as cursor:
         for row in cursor:
-            print(f"row: {row}")
             parcel_line_OID = row[0]
             parcel_line_OIDs = row[1]
             if str(parcel_line_OID) not in parcel_line_OIDs:
                 cursor.deleteRow()
 
-    print(f"check state of trimmed_near_table at: {trimmed_near_table}")
-    return trimmed_near_table
+    print(f"check state of output trimmed near table at: {trimmed_near_table_2}")
+    return trimmed_near_table_2
 
 
-def transform_near_table_with_street_info(near_table, spatial_join_output):
+def transform_detailed_near_table(near_table, field_prefix):
     """
-    Transform near table to include info on adjacent street(s) and other side(s).
-    :param near_table_name: Path to the near table.
+    Transform near table to include info on pairs of building sides and parcel segments that share a parcel boundary (non-street-facing) and do not share a boundary (street-facing).
+    :param near_table_name - string: Path to the near table that includes parcel info (output of trim_near_table()).
+    :param field_prefix - string: Name of near table prior to joins in trim_near_table() e.g. 'trimmed_near_table_with_parcel_info'.
+    TODO - remove if not needed
     :param spatial_join_output: Path to the spatial join output feature class.
     :return: Path to the transformed near table.
     """
     print("Transforming near table to include info on adjacent street(s) and other side(s)...")
 
     # Load spatial join results into a pandas DataFrame
+    
+    # Load near table data into a pandas DataFrame
+    fields = [f.name for f in arcpy.ListFields(near_table)]
+    near_array = arcpy.da.TableToNumPyArray(near_table, fields)
+    near_df = pd.DataFrame(near_array)
     #join_array = arcpy.da.TableToNumPyArray(parcel_street_join, ["TARGET_FID", "StFULLName", "is_parallel_to_street", "shared_boundary", "parcel_polygon_OID"])
     #join_df = pd.DataFrame(join_array)
     #join_df = join_df.rename(columns={"TARGET_FID": "PB_FID", "StFULLName": "STREET_NAME"})
@@ -525,18 +532,18 @@ def transform_near_table_with_street_info(near_table, spatial_join_output):
     #print("join_df:")
     #print(join_df)
 
-    building_parcel_df = get_building_parcel_df(spatial_join_output)
+    #building_parcel_df = get_building_parcel_df(spatial_join_output)
 
     #filtered_merged_df = merged_df.merge(building_parcel_df, left_on="IN_FID", right_on="JOIN_FID", how="left")
     # retain only those rows where 
     #filtered_merged_df = merged_df.merge(building_parcel_df, left_on="IN_FID", right_on="parcel_polygon_OID", how="inner")
     #filtered_merged_df = merged_df.merge(building_parcel_df, on=["TARGET_FID", "parcel_polygon_OID"], how="inner")
-    filtered_merged_df = merged_df.merge(building_parcel_df, on=["IN_FID", "parcel_polygon_OID"], how="inner")
+    #filtered_merged_df = merged_df.merge(building_parcel_df, on=["IN_FID", "parcel_polygon_OID"], how="inner")
     #merged_df[parcel_building_id_field] = merged_df["parcel_polygon_OID"].astype(str) + "-" + merged_df["IN_FID"].astype(str)
     #merged_df["is_facing_street"] = (merged_df["STREET_NAME"].notna()) & (merged_df["is_parallel_to_street"] == 1) & (merged_df["shared_boundary"] == 0)
     #print("merged_df after adding field 'is_facing_street':")
-    print("filtered_merged_df head:")
-    print(filtered_merged_df.head())
+    #print("filtered_merged_df head:")
+    #print(filtered_merged_df.head())
     ## Drop duplicate records based on NEAR_DIST, PARCEL_COMBO_FID, and STREET_NAME
     ## TODO may or may not need this step
     #merged_df = merged_df.drop_duplicates(subset=["NEAR_DIST", "PARCEL_COMBO_FID", "STREET_NAME"])
@@ -563,25 +570,32 @@ def transform_near_table_with_street_info(near_table, spatial_join_output):
 
     # Step 3: Populate fields for adjacent streets and other sides
     output_data = []
-    for in_fid, group in filtered_merged_df.groupby("IN_FID"):
-        row = {"IN_FID": in_fid}
+    in_fid_field = f"{field_prefix}_IN_FID"
+    near_fid_field = f"{field_prefix}_NEAR_FID"
+    near_dist_field = f"{field_prefix}_NEAR_DIST"
+    facing_street_field_part_1 = f"{field_prefix}_FACING_STREET"
+    other_side_field_part_1 = f"{field_prefix}_OTHER_SIDE"
+    shared_boundary_field = f"{field_prefix}_shared_boundary"
+
+    for in_fid, group in near_df.groupby(in_fid_field):
+        row = {in_fid_field: in_fid}
         facing_count, other_count = 1, 1
         for _, record in group.iterrows():
-            near_fid = record["NEAR_FID"]
-            distance = record["NEAR_DIST"]
+            near_fid = record[near_fid_field]
+            distance = record[near_dist_field]
             # TODO - add parameter for max number of fields for facing street and other side?
-            if not record["shared_boundary"]:
+            if not record[shared_boundary_field]:
                 # limit to x number of facing street sides
                 if facing_count <= 4:
                     #row[f"FACING_STREET_{facing_count}"] = record["STREET_NAME"]
-                    row[f"FACING_STREET_{facing_count}_PB_FID"] = near_fid
-                    row[f"FACING_STREET_{facing_count}_DIST_FT"] = distance
+                    row[f"{facing_street_field_part_1}_{facing_count}_PB_FID"] = near_fid
+                    row[f"{facing_street_field_part_1}_{facing_count}_DIST_FT"] = distance
                     facing_count += 1
             else:
                 # limit to x number of other sides
                 if other_count <= 4:
-                    row[f"OTHER_SIDE_{other_count}_PB_FID"] = near_fid
-                    row[f"OTHER_SIDE_{other_count}_DIST_FT"] = distance
+                    row[f"{other_side_field_part_1}_{other_count}_PB_FID"] = near_fid
+                    row[f"{other_side_field_part_1}_{other_count}_DIST_FT"] = distance
                     other_count += 1
         output_data.append(row)
 
@@ -596,11 +610,11 @@ def transform_near_table_with_street_info(near_table, spatial_join_output):
     #transformed_table_path = os.path.join(gdb_path, "transformed_near_table_with_facing_optimized")
     # TODO - update or remove parcel id from name
     gdb_path = os.getenv("GEODATABASE")
-    transformed_table_path = os.path.join(gdb_path, "transformed_near_table_with_street_info_parcel_TEST_20250211")
+    transformed_table_path = os.path.join(gdb_path, "transformed_near_table_with_street_info_parcel_TEST_20250212")
     drop_feature_class_if_exists(transformed_table_path)
 
     arcpy.da.NumPyArrayToTable(output_array, transformed_table_path)
-    print(f"Transformed near table written to: {transformed_table_path}")
+    print(f"Check transformed near table written to: {transformed_table_path}")
     return transformed_table_path
 
 
@@ -626,7 +640,11 @@ def run(building_fc, parcel_line_fc, output_near_table_suffix, spatial_join_outp
     gdb_path = os.getenv("GEODATABASE")
     near_table_with_parcel_info = os.path.join(gdb_path, "near_table_with_parcel_info_20250212")
     parcel_id_table = os.path.join(gdb_path, "parcel_id_table_20250212")
-    trimmed_near_table = trim_near_table(near_table_with_parcel_info, building_parcel_join_fc, parcel_id_table)
+    # TODO - uncomment after testing other functions and remove hardcoded paths
+    #trimmed_near_table = trim_near_table(near_table_with_parcel_info, building_parcel_join_fc, parcel_id_table)
+    trimmed_near_table = os.path.join(gdb_path, "updated_trimmed_near_table_with_parcel_info")
+
+    transform_detailed_near_table(trimmed_near_table, "trimmed_near_table_with_parcel_info")
 
     # TODO fix and rename transform_near_table_with_street_info() before calling
     #transform_near_table_with_street_info(near_table, spatial_join_output)
