@@ -168,6 +168,9 @@ def match_parcel_ids(parcel_polygon_fc, parcel_line_fc):
     :param parcel_line_fc: Path to the parcel line feature class.
     :return: a dictionary with parcel polygon IDs as keys and lists of line IDs as values.
     """
+    # must pass layer (not fc) to SelectLayerByLocation to get expected results (not all features) in standalone script
+    parcel_line_layer = "parcel_line_layer"
+    arcpy.management.MakeFeatureLayer(parcel_line_fc, parcel_line_layer)
     # for parcel_id_dict, keys are parcel polygon IDs, values are lists of line IDs
     parcel_id_dict = {}
     # TODO - test performance of this vs use of arcpy.management.SelectLayerByLocation
@@ -175,12 +178,16 @@ def match_parcel_ids(parcel_polygon_fc, parcel_line_fc):
         for row in cursor:
             parcel_id = row[0]
             parcel_geometry = row[1]
-            arcpy.management.SelectLayerByLocation(parcel_line_fc, "INTERSECT", parcel_geometry)
-            with arcpy.da.SearchCursor(parcel_line_fc, ["OBJECTID"]) as line_cursor:
+            print(f"length of parcel_geometry: {len(parcel_geometry)}")
+            arcpy.management.SelectLayerByLocation(parcel_line_layer, "SHARE_A_LINE_SEGMENT_WITH", parcel_geometry, search_distance="300 Feet")
+            selected_count = arcpy.management.GetCount(parcel_line_layer)[0]
+            print(f"Selected {selected_count} lines.")
+            with arcpy.da.SearchCursor(parcel_line_layer, ["OBJECTID"]) as line_cursor:
                 for line in line_cursor:
                     if parcel_id not in parcel_id_dict:
                         parcel_id_dict[parcel_id] = []
-                        parcel_id_dict[parcel_id].append(line[0])
+                    parcel_id_dict[parcel_id].append(line[0])
+    # TODO - create table from dict
             # get the lines that make up the boundary of the parcel
             #with arcpy.da.SearchCursor(parcel_line_fc, ["OBJECTID", "SHAPE@"]) as line_cursor:
             #    for line in line_cursor:
@@ -197,8 +204,10 @@ if __name__ == "__main__":
     start_time = time.time()
     print(f"Preparation of data started at: {time.ctime(start_time)}")
     set_environment()
-    parcel_polygon_fc = "parcels_in_zones_r_th_otmu_li_ao"
-    parcel_line_fc = "parcel_lines_from_polygons_TEST"
+    #parcel_polygon_fc = "parcels_in_zones_r_th_otmu_li_ao"
+    parcel_polygon_fc = "subset_parcels_in_zones_r_th_otmu_li_ao_20250212"
+    #parcel_line_fc = "parcel_lines_from_polygons_TEST"
+    parcel_line_fc = "subset_parcel_lines_from_polygons_TEST_20250212"
     #create_parcel_line_fc(parcel_polygon_fc, parcel_line_fc, "parcel_polygon_OID")
     #identify_shared_parcel_boundaries(parcel_polygon_fc, parcel_line_fc, "shared_boundary")
     #arcpy.management.DeleteIdentical(
