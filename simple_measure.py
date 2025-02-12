@@ -512,64 +512,17 @@ def transform_detailed_near_table(near_table, field_prefix):
     Transform near table to include info on pairs of building sides and parcel segments that share a parcel boundary (non-street-facing) and do not share a boundary (street-facing).
     :param near_table_name - string: Path to the near table that includes parcel info (output of trim_near_table()).
     :param field_prefix - string: Name of near table prior to joins in trim_near_table() e.g. 'trimmed_near_table_with_parcel_info'.
-    TODO - remove if not needed
-    :param spatial_join_output: Path to the spatial join output feature class.
     :return: Path to the transformed near table.
     """
     print("Transforming near table to include info on adjacent street(s) and other side(s)...")
-
-    # Load spatial join results into a pandas DataFrame
     
     # Load near table data into a pandas DataFrame
     fields = [f.name for f in arcpy.ListFields(near_table)]
     near_array = arcpy.da.TableToNumPyArray(near_table, fields)
     near_df = pd.DataFrame(near_array)
-    #join_array = arcpy.da.TableToNumPyArray(parcel_street_join, ["TARGET_FID", "StFULLName", "is_parallel_to_street", "shared_boundary", "parcel_polygon_OID"])
-    #join_df = pd.DataFrame(join_array)
-    #join_df = join_df.rename(columns={"TARGET_FID": "PB_FID", "StFULLName": "STREET_NAME"})
-    ##TODO - get subset of join_df where parcel_polygon_OID = parcel_id - may not be necessary because of merge() below - see creation of merged_df below
-    ##join_df = join_df[join_df["parcel_polygon_OID"] == f"{parcel_id}"]
-    #print("join_df:")
-    #print(join_df)
 
-    #building_parcel_df = get_building_parcel_df(spatial_join_output)
-
-    #filtered_merged_df = merged_df.merge(building_parcel_df, left_on="IN_FID", right_on="JOIN_FID", how="left")
-    # retain only those rows where 
-    #filtered_merged_df = merged_df.merge(building_parcel_df, left_on="IN_FID", right_on="parcel_polygon_OID", how="inner")
-    #filtered_merged_df = merged_df.merge(building_parcel_df, on=["TARGET_FID", "parcel_polygon_OID"], how="inner")
-    #filtered_merged_df = merged_df.merge(building_parcel_df, on=["IN_FID", "parcel_polygon_OID"], how="inner")
-    #merged_df[parcel_building_id_field] = merged_df["parcel_polygon_OID"].astype(str) + "-" + merged_df["IN_FID"].astype(str)
-    #merged_df["is_facing_street"] = (merged_df["STREET_NAME"].notna()) & (merged_df["is_parallel_to_street"] == 1) & (merged_df["shared_boundary"] == 0)
-    #print("merged_df after adding field 'is_facing_street':")
-    #print("filtered_merged_df head:")
-    #print(filtered_merged_df.head())
-    ## Drop duplicate records based on NEAR_DIST, PARCEL_COMBO_FID, and STREET_NAME
-    ## TODO may or may not need this step
-    #merged_df = merged_df.drop_duplicates(subset=["NEAR_DIST", "PARCEL_COMBO_FID", "STREET_NAME"])
-    #print("merged_df after adding is_facing_street and dropping duplicates:")
-    #print(merged_df)
-
-    # remove unnecessary rows from merged_df - TODO - do this more efficiently?
-    #facing_street_df = merged_df[merged_df["is_facing_street"]]
-    #facing_street_df = facing_street_df.drop_duplicates(subset=["NEAR_DIST", "BUILDING_COMBO_FID"])
-    #other_side_df = merged_df[~merged_df["is_facing_street"]]
-    #other_side_df = other_side_df.drop_duplicates(subset=["NEAR_DIST", "BUILDING_COMBO_FID"])
-    ##get series of PB_FID values from other_side_df
-    #other_side_pb_fids = other_side_df["PB_FID"].unique()
-    ##get series of PB_FID values from facing_street_df
-    #facing_street_pb_fids = facing_street_df["PB_FID"].unique()
-    #for pb_fid in other_side_pb_fids:
-    #    if pb_fid in facing_street_pb_fids:
-    #        # remove row from other side df - best way to do this?
-    #        other_side_df = other_side_df[other_side_df["PB_FID"] != pb_fid]
-    ##assign combination of facing_street_df and other_side_df to merged_df
-    #merged_df = pd.concat([facing_street_df, other_side_df])
-    #print("merged_df after removing unnecessary rows:")
-    #print(merged_df)
-
-    # Step 3: Populate fields for adjacent streets and other sides
     output_data = []
+    # prepare field names
     in_fid_field = f"{field_prefix}_IN_FID"
     near_fid_field = f"{field_prefix}_NEAR_FID"
     near_dist_field = f"{field_prefix}_NEAR_DIST"
@@ -577,6 +530,7 @@ def transform_detailed_near_table(near_table, field_prefix):
     other_side_field_part_1 = f"{field_prefix}_OTHER_SIDE"
     shared_boundary_field = f"{field_prefix}_shared_boundary"
 
+    # transform table
     for in_fid, group in near_df.groupby(in_fid_field):
         row = {in_fid_field: in_fid}
         facing_count, other_count = 1, 1
@@ -599,20 +553,16 @@ def transform_detailed_near_table(near_table, field_prefix):
                     other_count += 1
         output_data.append(row)
 
-    # Step 4: Convert output to a NumPy structured array and write to a table
+    # Convert output to a NumPy structured array and write to a table
     output_df = pd.DataFrame(output_data)
-    print(output_df.head())
+    #print(output_df.head())
     output_df.fillna(-1, inplace=True)
     output_fields = [(col, "f8" if "DIST" in col else ("i4" if output_df[col].dtype.kind in 'i' else "<U50")) for col in output_df.columns]
-    print(f'Output fields: {output_fields}')
+    #print(f'Output fields: {output_fields}')
     output_array = np.array([tuple(row) for row in output_df.to_records(index=False)], dtype=output_fields)
-
-    #transformed_table_path = os.path.join(gdb_path, "transformed_near_table_with_facing_optimized")
-    # TODO - update or remove parcel id from name
     gdb_path = os.getenv("GEODATABASE")
     transformed_table_path = os.path.join(gdb_path, "transformed_near_table_with_street_info_parcel_TEST_20250212")
     drop_feature_class_if_exists(transformed_table_path)
-
     arcpy.da.NumPyArrayToTable(output_array, transformed_table_path)
     print(f"Check transformed near table written to: {transformed_table_path}")
     return transformed_table_path
