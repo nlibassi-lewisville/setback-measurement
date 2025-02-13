@@ -289,6 +289,7 @@ def get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_si
     # TODO - add param for closest_count - 20 was not enough when using 150 feet search radius - 2/12 12:03p: have not tried 30 with 300 feet search radius
     print("Generating near table...")
     near_table = os.path.join(os.getenv("GEODATABASE"), f"near_table_{output_near_table_suffix}")
+    drop_feature_class_if_exists(near_table)
     arcpy.analysis.GenerateNearTable(
         in_features=building_fc,
         near_features=parcel_line_fc,
@@ -568,6 +569,34 @@ def transform_detailed_near_table(near_table, field_prefix):
     return transformed_table_path
 
 
+def join_transformed_near_table_to_building_fc(near_table, building_fc, trimmed_table_name, output_fc_name):
+    """
+    Join the transformed near table to the original building feature class.
+    :param near_table: Path to the transformed near table.
+    :param building_fc: Path to the building feature class.
+    :param trimmed_table_name: Name of the near table prior to joins in trim_near_table() to be used as prefix in field name e.g. 'trimmed_near_table_with_parcel_info'.
+    :param output_fc_name: Path to the output feature class.
+    """
+    near_table_view = "near_table_view"
+    arcpy.management.MakeTableView(near_table, near_table_view)
+    building_layer = "building_layer"
+    arcpy.management.MakeFeatureLayer(building_fc, building_layer)
+    near_table_in_fid_field = f"{trimmed_table_name}_IN_FID"
+    arcpy.management.AddJoin(
+        in_layer_or_view=building_layer,
+        in_field="OBJECTID",
+        join_table=near_table_view,
+        join_field=near_table_in_fid_field,
+        join_type="KEEP_ALL",
+        index_join_fields="NO_INDEX_JOIN_FIELDS",
+        rebuild_index="NO_REBUILD_INDEX",
+        join_operation=""
+    )
+    arcpy.management.CopyFeatures(building_layer, output_fc_name)
+    output_fc = os.path.join(os.getenv("FEATURE_DATASET"), output_fc_name)
+    print(f"Check final output feature class at: {output_fc}")
+
+
 def run(building_fc, parcel_line_fc, output_near_table_suffix, spatial_join_output, max_side_fields=4):
     """
     Run the process to measure distances between buildings and parcels.
@@ -585,66 +614,17 @@ def run(building_fc, parcel_line_fc, output_near_table_suffix, spatial_join_outp
     # TODO - uncomment after testing other functions
     near_table = get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_side_fields=max_side_fields)
     near_table_with_parcel_info = get_near_table_with_parcel_info(near_table, parcel_line_fc)
-
     building_parcel_join_fc = "buildings_with_parcel_ids"
     gdb_path = os.getenv("GEODATABASE")
     near_table_with_parcel_info = os.path.join(gdb_path, "near_table_with_parcel_info_20250212")
     parcel_id_table = os.path.join(gdb_path, "parcel_id_table_20250212")
+    trimmed_table_name = "trimmed_near_table_with_parcel_info"
     # TODO - uncomment after testing other functions and remove hardcoded paths
     trimmed_near_table = trim_near_table(near_table_with_parcel_info, building_parcel_join_fc, parcel_id_table)
     trimmed_near_table = os.path.join(gdb_path, "updated_trimmed_near_table_with_parcel_info")
-    transform_detailed_near_table(trimmed_near_table, "trimmed_near_table_with_parcel_info")
-
-    # TODO fix and rename transform_near_table_with_street_info() before calling
-    #transform_near_table_with_street_info(near_table, spatial_join_output)
-    
-    #input_streets = "streets_20241030"
-    #gdb = os.getenv("GEODATABASE")
-    #feature_dataset = os.getenv("FEATURE_DATASET")
-    ## Paths to input data
-    ## TODO - pass these as arguments to run() after testing
-    #building_fc = f"extracted_footprints_nearmap_{building_source_date}_in_aoi_and_zones_r_th_otmu_li_ao"
-    #parcel_polygon_fc = "parcels_in_zones_r_th_otmu_li_ao"
-    ## TODO - modify after test or keep in memory only if possible
-    ## Temporary outputs
-    #initial_near_table_name = f"initial_near_table_{parcel_id}"
-    #initial_near_table = os.path.join(gdb, initial_near_table_name)
-    ##temp_parcel_lines = f"temp_parcel_lines_{parcel_id}"
-    ## TODO - ensure that temp_parcel_lines is created if needed...
-    ## Final outputs
-    #output_near_table = f"test_output_near_table_{building_source_date}_parcel_polygon_{parcel_id}"
-    #output_combined_lines_fc = "temp_combined_parcel_lines"
-    ## Initialize outputs
-    #arcpy.management.CreateTable(gdb, output_near_table)
-    #arcpy.management.CreateFeatureclass(
-    #    gdb, output_combined_lines_fc, "POLYLINE", spatial_reference=parcel_polygon_fc
-    #)
-    ## TODO - remove hardcoded parcel id after testing
-    #clipped_street_fc = f"clipped_streets_near_parcel_{parcel_id}"
-    #clip_streets_near_parcel(parcel_polygon_fc, parcel_id, input_streets, clipped_street_fc, buffer_ft=40)
-    #parcel_street_join_path = os.path.join(gdb, "parcel_street_join")
-    ## 'all_parcel_lines_fc' comes from create_parcel_line_fc() in prep_data.py
-    #populate_parallel_field(parcel_street_join_path, all_parcel_lines_fc, "StFULLName", "is_parallel_to_street", street_fc=clipped_street_fc)
-    ## parcels tried so far: 64, 62
-    ##process_parcel(62, parcel_polygon_fc, building_fc, temp_parcel_lines, initial_near_table, output_near_table, output_combined_lines_fc, max_side_fields=4)
-    #process_parcel(parcel_id, parcel_polygon_fc, all_parcel_lines_fc, building_fc, initial_near_table, output_near_table, output_combined_lines_fc, max_side_fields=4)
-    ##transform_near_table_with_street_info(gdb, initial_near_table_name, input_streets, temp_parcel_lines)
-    ## TODO pass the correct split parcel lines fc in a cleaner way after testing
-    #split_parcel_lines_fc = os.path.join(feature_dataset, f"split_parcel_lines_{parcel_id}")
-    #drop_feature_class_if_exists(split_parcel_lines_fc)
-    #transform_near_table_with_street_info(gdb, initial_near_table_name, parcel_street_join_path, input_streets, split_parcel_lines_fc)
-    ### Iterate over each parcel
-    ##with arcpy.da.SearchCursor(parcel_polygon_fc, ["OBJECTID"]) as cursor:
-    ##    for row in cursor:
-    ##        parcel_id = row[0]
-    ##        print(f"Processing parcel {parcel_id}...")
-    ##        process_parcel(parcel_id, parcel_polygon_fc, building_fc, temp_parcel_lines, output_near_table, output_combined_lines_fc, max_side_fields=4)
-    ### Join the near table back to building polygons
-    ##print("Joining near table to building polygons...")
-    ##arcpy.management.JoinField(building_fc, "OBJECTID", output_near_table, "IN_FID")
-    ### Save final outputs
-    ##arcpy.management.CopyFeatures(output_combined_lines_fc, "path_to_final_parcel_lines")
-    ##arcpy.management.CopyRows(output_near_table, "path_to_final_near_table")
+    transformed_near_table = transform_detailed_near_table(trimmed_near_table, "trimmed_near_table_with_parcel_info")
+    final_output_fc = "buildings_with_setback_values_20250213"
+    join_transformed_near_table_to_building_fc(transformed_near_table, building_fc, trimmed_table_name, final_output_fc)
     elapsed_minutes = (time.time() - start_time) / 60
     print(f"Setback distance calculation with street info fields complete in {round(elapsed_minutes, 2)} minutes.")
 
