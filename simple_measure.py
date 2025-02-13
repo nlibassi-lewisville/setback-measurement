@@ -558,7 +558,8 @@ def transform_detailed_near_table(near_table, field_prefix):
     output_df = pd.DataFrame(output_data)
     #print(output_df.head())
     output_df.fillna(-1, inplace=True)
-    output_fields = [(col, "f8" if "DIST" in col else ("i4" if output_df[col].dtype.kind in 'i' else "<U50")) for col in output_df.columns]
+    #output_fields = [(col, "f8" if "DIST" in col else ("i4" if output_df[col].dtype.kind in 'i' else "<U50")) for col in output_df.columns]
+    output_fields = [(col, "f8" if "DIST" in col else "i4") for col in output_df.columns]
     #print(f'Output fields: {output_fields}')
     output_array = np.array([tuple(row) for row in output_df.to_records(index=False)], dtype=output_fields)
     gdb_path = os.getenv("GEODATABASE")
@@ -592,8 +593,9 @@ def join_transformed_near_table_to_building_fc(near_table, building_fc, trimmed_
         rebuild_index="NO_REBUILD_INDEX",
         join_operation=""
     )
-    arcpy.management.CopyFeatures(building_layer, output_fc_name)
     output_fc = os.path.join(os.getenv("FEATURE_DATASET"), output_fc_name)
+    drop_feature_class_if_exists(output_fc)
+    arcpy.management.CopyFeatures(building_layer, output_fc_name)
     print(f"Check final output feature class at: {output_fc}")
 
 
