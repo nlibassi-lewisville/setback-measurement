@@ -631,11 +631,11 @@ def rename_fields(full_results_fc, trimmed_table_name, output_fc_name):
     return output_fc
         
 
-def filter_results(results_fc, setback_count_threshold, filtered_fc_name):
+def filter_results(results_fc, setback_count_max, filtered_fc_name):
     """
     Filter the results feature class to include only those buildings with x number of setback distances.
     :param results_fc: Path to the results feature class.
-    :param setback_count_threshold: Maximum number of setback distances to keep a building (those with too many distances may introduce errors)
+    :param setback_count_max: Maximum number of setback distances to keep a building (those with too many distances may introduce errors)
     :param filtered_fc_name: Name of the filtered feature class.
     :return filtered_fc: Path to the filtered feature class.
     """
@@ -645,17 +645,16 @@ def filter_results(results_fc, setback_count_threshold, filtered_fc_name):
     fields = arcpy.ListFields(results_fc)
     all_field_names = [f.name for f in fields]
     print(f"All field names from results fc: {all_field_names}")
-    # original field names are in aliases after all the joins - fix this before filtering?
-    field_names = [f.alias for f in fields if "DIST" in f.alias]
+    field_names = [f.name for f in fields if "DIST" in f.name]
     with arcpy.da.UpdateCursor(filtered_fc_name, [field_names]) as cursor:
         for row in cursor:
             value_count = 0
-            for i in range(1, len(field_names) + 1):
+            for i in range(0, len(field_names)):
                 if row[i] > -1:
                     value_count += 1
-            if value_count < setback_count_threshold:
+            if value_count > setback_count_max:
                 cursor.deleteRow()
-    #arcpy.management.SelectFeatures(results_fc, filtered_fc, f"COUNT_DISTANCES >= {setback_count_threshold}")
+    #arcpy.management.SelectFeatures(results_fc, filtered_fc, f"COUNT_DISTANCES >= {setback_count_max}")
     filtered_fc = os.path.join(os.getenv("FEATURE_DATASET"), filtered_fc_name)
     print(f"Check filtered results feature class at: {filtered_fc}")
     return filtered_fc
@@ -715,14 +714,16 @@ def run(building_fc, parcel_line_fc, output_near_table_suffix, spatial_join_outp
     transformed_near_table = transform_detailed_near_table(trimmed_near_table, "trimmed_near_table_with_parcel_info")
     full_output_fc_name = "buildings_with_setback_values_20250213"
     full_output_fc = join_transformed_near_table_to_building_fc(transformed_near_table, building_fc, trimmed_table_name, full_output_fc_name)
-    print(f"full_output_fc (results fc): {full_output_fc}")
+    #print(f"full_output_fc (results fc): {full_output_fc}")
     clean_fc_name = f"clean_{full_output_fc_name}"
-    rename_fields(full_output_fc, trimmed_table_name, clean_fc_name)
+    clean_output_fc = rename_fields(full_output_fc, trimmed_table_name, clean_fc_name)
+    filtered_fc_name = "filtered_results_20250213"
+    filtered_fc = filter_results(clean_output_fc, 4, filtered_fc_name)
 
     # for testing only:
     #rename_fields(full_output_fc_name, trimmed_table_name)
     #filtered_fc_name = "filtered_results_20250213"
-    #filtered_fc = filter_results(full_output_fc, 4, filtered_fc_name)
+    #filtered_fc = filter_results(clean_fc_name, 4, filtered_fc_name)
     elapsed_minutes = (time.time() - start_time) / 60
     print(f"Setback distance calculation with street info fields complete in {round(elapsed_minutes, 2)} minutes.")
 
