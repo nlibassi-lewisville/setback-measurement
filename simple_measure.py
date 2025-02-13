@@ -286,7 +286,7 @@ def get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_si
     :param max_side_fields - int: Maximum number of fields to add to the near table for holding info on parcel boundary sides.
     :return: Path to the near table.
     """
-    # TODO - add param for closest_count - 20 was not enough when using 150 feet search radius - 2/12 12:03p: have not tried 30 with 300 feet search radius
+    # for closest_count: 20 was not enough when using 150 feet search radius - realized 2/13 that 30 is not enough (though 300 feet search radius might be)
     print("Generating near table...")
     near_table = os.path.join(os.getenv("GEODATABASE"), f"near_table_{output_near_table_suffix}")
     drop_feature_class_if_exists(near_table)
@@ -294,11 +294,11 @@ def get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_si
         in_features=building_fc,
         near_features=parcel_line_fc,
         out_table=near_table,
-        search_radius="300 Feet",
+        search_radius="800 Feet",
         location="NO_LOCATION",
         angle="NO_ANGLE",
         closest="ALL",
-        closest_count=30,
+        closest_count=50,
         method="PLANAR",
         distance_unit="Feet"
     )
@@ -645,7 +645,8 @@ def filter_results(results_fc, setback_count_max, filtered_fc_name):
     fields = arcpy.ListFields(results_fc)
     all_field_names = [f.name for f in fields]
     print(f"All field names from results fc: {all_field_names}")
-    field_names = [f.name for f in fields if "DIST" in f.name]
+    # sort field names to get FACING_STREET fields checked before OTHER_SIDE fields
+    field_names = sorted([f.name for f in fields if "DIST" in f.name])
     with arcpy.da.UpdateCursor(filtered_fc_name, [field_names]) as cursor:
         for row in cursor:
             value_count = 0
