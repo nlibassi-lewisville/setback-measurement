@@ -515,7 +515,7 @@ def transform_detailed_near_table(near_table, field_prefix):
     :param field_prefix - string: Name of near table prior to joins in trim_near_table() e.g. 'trimmed_near_table_with_parcel_info'.
     :return: Path to the transformed near table.
     """
-    print("Transforming near table to include info on adjacent street(s) and other side(s)...")
+    print("Transforming near table to get one record per building and show all setback values for each building side...")
     
     # Load near table data into a pandas DataFrame
     fields = [f.name for f in arcpy.ListFields(near_table)]
@@ -577,6 +577,7 @@ def join_transformed_near_table_to_building_fc(near_table, building_fc, trimmed_
     :param building_fc: Path to the building feature class.
     :param trimmed_table_name: Name of the near table prior to joins in trim_near_table() to be used as prefix in field name e.g. 'trimmed_near_table_with_parcel_info'.
     :param output_fc_name: Path to the output feature class.
+    :return: Path to the output feature class.
     """
     near_table_view = "near_table_view"
     arcpy.management.MakeTableView(near_table, near_table_view)
@@ -596,7 +597,94 @@ def join_transformed_near_table_to_building_fc(near_table, building_fc, trimmed_
     output_fc = os.path.join(os.getenv("FEATURE_DATASET"), output_fc_name)
     drop_feature_class_if_exists(output_fc)
     arcpy.management.CopyFeatures(building_layer, output_fc_name)
-    print(f"Check final output feature class at: {output_fc}")
+    print(f"Check full output feature class at: {output_fc}")
+    return output_fc
+
+
+def rename_fields(full_results_fc, trimmed_table_name, output_fc_name):  
+    """
+    Rename fields in the full output feature class - original field names are in aliases after all joins, and aliases contain trimmed table name.
+    :param full_results_fc: Path to the full output feature class.
+    :param trimmed_table_name: Name of the near table prior to joins in trim_near_table() to be used as prefix in field name e.g. 'trimmed_near_table_with_parcel_info'.
+    :param output_fc_name: Name of the output feature class with renamed fields.
+    :return: Path to the output feature class.
+    """
+    # original field names are in aliases after all the joins
+    #type_dict = {"String": "TEXT", "Integer": "LONG", "Double": "DOUBLE", "DateOnly": "DATEONLY"}
+    fields = [f for f in arcpy.ListFields(full_results_fc) if f.type not in ["Geometry", "OID"]]
+    results_layer = "results_layer"
+    arcpy.management.MakeFeatureLayer(full_results_fc, results_layer)
+    for f in fields:
+        if trimmed_table_name in f.aliasName:
+            new_field_name = f.aliasName.replace(f"{trimmed_table_name}_", "")
+            #arcpy.management.AlterField(results_layer, f.name, new_field_name, new_field_name, field_type=type_dict[f.type])
+            arcpy.management.AlterField(results_layer, f.name, new_field_name, new_field_name)
+        elif f.aliasName != "OBJECTID" and f.name != "OBJECTID" and f.name != "SHAPE@":
+            #arcpy.management.AlterField(results_layer, f.name, f.aliasName, f.aliasName, field_type=type_dict[f.type])
+            arcpy.management.AlterField(results_layer, f.name, f.aliasName, f.aliasName)
+        elif f.aliasName == "OBJECTID":
+            arcpy.management.DeleteField(results_layer, f.name)
+        #arcpy.management.AlterField(full_results_fc, f.name, new_field_name, new_field_name, field_type=f.type)
+    arcpy.management.CopyFeatures(results_layer, output_fc_name)
+    output_fc = os.path.join(os.getenv("FEATURE_DATASET"), output_fc_name)
+    print(f"Check renamed fields in output feature class at: {output_fc}")
+    return output_fc
+        
+
+def filter_results(results_fc, setback_count_threshold, filtered_fc_name):
+    """
+    Filter the results feature class to include only those buildings with x number of setback distances.
+    :param results_fc: Path to the results feature class.
+    :param setback_count_threshold: Maximum number of setback distances to keep a building (those with too many distances may introduce errors)
+    :param filtered_fc_name: Name of the filtered feature class.
+    :return filtered_fc: Path to the filtered feature class.
+    """
+    drop_feature_class_if_exists(filtered_fc_name)
+    #results_fc_copy = os.path.join(os.getenv("FEATURE_DATASET"), "results_fc_copy")
+    arcpy.management.CopyFeatures(results_fc, filtered_fc_name)
+    fields = arcpy.ListFields(results_fc)
+    all_field_names = [f.name for f in fields]
+    print(f"All field names from results fc: {all_field_names}")
+    # original field names are in aliases after all the joins - fix this before filtering?
+    field_names = [f.alias for f in fields if "DIST" in f.alias]
+    with arcpy.da.UpdateCursor(filtered_fc_name, [field_names]) as cursor:
+        for row in cursor:
+            value_count = 0
+            for i in range(1, len(field_names) + 1):
+                if row[i] > -1:
+                    value_count += 1
+            if value_count < setback_count_threshold:
+                cursor.deleteRow()
+    #arcpy.management.SelectFeatures(results_fc, filtered_fc, f"COUNT_DISTANCES >= {setback_count_threshold}")
+    filtered_fc = os.path.join(os.getenv("FEATURE_DATASET"), filtered_fc_name)
+    print(f"Check filtered results feature class at: {filtered_fc}")
+    return filtered_fc
+
+# TODO - edit - content of get_averages is mostly from copilot right now!!
+def get_averages(results_fc, output_table_name):
+    """
+    Create a table holding average setback distances for building sides facing streets (non) and for those not facing streets (shared boundaries).
+    :param results_fc: Path to the results feature class.
+    :param output_table_name: Name of the output table.
+    :return: Path to the output table.
+    """
+    drop_feature_class_if_exists(output_table_name)
+    arcpy.management.CopyRows(results_fc, output_table_name)
+    fields = arcpy.ListFields(results_fc)
+
+    field_names = [f.name for f in fields if "DIST" in f.name]
+    with arcpy.da.UpdateCursor(output_table_name, ["AVERAGE_DISTANCES"]) as cursor:
+        for row in cursor:
+            total = 0
+            count = 0
+            for i in range(1, len(field_names) + 1):
+                if row[i] > -1:
+                    total += row[i]
+                    count += 1
+            if count > 0:
+                row[0] = total / count
+                cursor.updateRow(row)
+    return output_table_name
 
 
 def run(building_fc, parcel_line_fc, output_near_table_suffix, spatial_join_output, max_side_fields=4):
@@ -625,8 +713,16 @@ def run(building_fc, parcel_line_fc, output_near_table_suffix, spatial_join_outp
     trimmed_near_table = trim_near_table(near_table_with_parcel_info, building_parcel_join_fc, parcel_id_table)
     trimmed_near_table = os.path.join(gdb_path, "updated_trimmed_near_table_with_parcel_info")
     transformed_near_table = transform_detailed_near_table(trimmed_near_table, "trimmed_near_table_with_parcel_info")
-    final_output_fc = "buildings_with_setback_values_20250213"
-    join_transformed_near_table_to_building_fc(transformed_near_table, building_fc, trimmed_table_name, final_output_fc)
+    full_output_fc_name = "buildings_with_setback_values_20250213"
+    full_output_fc = join_transformed_near_table_to_building_fc(transformed_near_table, building_fc, trimmed_table_name, full_output_fc_name)
+    print(f"full_output_fc (results fc): {full_output_fc}")
+    clean_fc_name = f"clean_{full_output_fc_name}"
+    rename_fields(full_output_fc, trimmed_table_name, clean_fc_name)
+
+    # for testing only:
+    #rename_fields(full_output_fc_name, trimmed_table_name)
+    #filtered_fc_name = "filtered_results_20250213"
+    #filtered_fc = filter_results(full_output_fc, 4, filtered_fc_name)
     elapsed_minutes = (time.time() - start_time) / 60
     print(f"Setback distance calculation with street info fields complete in {round(elapsed_minutes, 2)} minutes.")
 
