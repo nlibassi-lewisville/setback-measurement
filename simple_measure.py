@@ -360,34 +360,29 @@ def filter_results(results_fc, setback_count_max, filtered_fc_name):
     logger.info(f"Check filtered results feature class at: {filtered_fc}")
     return filtered_fc
 
-# TODO - edit - content of get_averages is mostly from copilot right now!!
-def get_averages(results_fc, output_table_name):
+
+def get_average(results_fc, setback_type):
     """
     Create a table holding average setback distances for building sides facing streets (non) and for those not facing streets (shared boundaries).
-    :param results_fc: Path to the results feature class.
-    :param output_table_name: Name of the output table.
-    :return: Path to the output table.
+    :param results_fc - string: Path to the filtered results feature class.
+    :param setback_type - string: Type of setback to calculate averages - either "FACING_STREET" or "OTHER_SIDE".
+    :return: dict containing the sum, count, and average of the setback distances.
     """
-    drop_feature_class_if_exists(output_table_name)
-    arcpy.management.CopyRows(results_fc, output_table_name)
+    #output_table_name = f"averages_{setback_type}_{output_table_suffix}"
+    #drop_feature_class_if_exists(output_table_name)
+    #arcpy.management.CopyRows(results_fc, output_table_name)
     fields = arcpy.ListFields(results_fc)
-    facing_street_total = 0
-    facing_street_count = 0
-    other_side_total = 0
-    other_side_count = 0
-    field_names = [f.name for f in fields if "DIST" in f.name]
-    with arcpy.da.SearchCursor(output_table_name, field_names) as cursor:
+    setback_sum = 0
+    setback_count = 0
+    field_names = [f.name for f in fields if setback_type in f.name]
+    with arcpy.da.SearchCursor(results_fc, field_names) as cursor:
         for row in cursor:
-            total = 0
-            count = 0
-            for i in range(1, len(field_names) + 1):
+            for i in range(0, len(field_names)):
                 if row[i] > -1:
-                    total += row[i]
-                    count += 1
-            if count > 0:
-                row[0] = total / count
-                cursor.updateRow(row)
-    return output_table_name
+                    setback_sum += row[i]
+                    setback_count += 1
+    setback_average = setback_sum / setback_count
+    return { "sum": setback_sum, "count": setback_count, "average": setback_average }
 
 
 def run(building_fc, parcel_line_fc, parcel_id_table, output_near_table_suffix, max_side_fields=4):
@@ -419,6 +414,13 @@ def run(building_fc, parcel_line_fc, parcel_id_table, output_near_table_suffix, 
     clean_output_fc = rename_fields(full_output_fc, trimmed_table_name, clean_fc_name)
     filtered_fc_name = f"filtered_results_{output_near_table_suffix}"
     filtered_fc = filter_results(clean_output_fc, 4, filtered_fc_name)
+
+    #temp for testing average function
+    #filtered_fc = filtered_fc_name
+    facing_street_averages = get_average(filtered_fc, "FACING_STREET")
+    other_side_averages = get_average(filtered_fc, "OTHER_SIDE")
+    print(f"facing street averages: {facing_street_averages}")
+    print(f"other side averages: {other_side_averages}")
 
     # for testing only:
     #rename_fields(full_output_fc_name, trimmed_table_name)
