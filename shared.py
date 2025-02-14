@@ -3,6 +3,7 @@ import math
 from dotenv import load_dotenv
 import pathlib
 import arcpy
+from base_logger import logger
 
 
 def set_environment():
@@ -14,7 +15,7 @@ def set_environment():
     load_dotenv(env_path)
     arcpy.env.workspace = os.getenv("FEATURE_DATASET")
     arcpy.env.overwriteOutput = True
-    print(f"Workspace set to {arcpy.env.workspace}")
+    logger.info(f"Workspace set to {arcpy.env.workspace}")
 
 
 def drop_field_if_exists(feature_class, field_name):
@@ -27,10 +28,10 @@ def drop_field_if_exists(feature_class, field_name):
     for field in fields:
         if field.name == field_name:
             arcpy.DeleteField_management(feature_class, field_name)
-            print(f"Field '{field_name}' dropped from {feature_class}.")
+            logger.info(f"Field '{field_name}' dropped from {feature_class}.")
             break
     else:
-        print(f"Field '{field_name}' does not exist in {feature_class}.")
+        logger.info(f"Field '{field_name}' does not exist in {feature_class}.")
 
 
 def calculate_field_if_exists(feature_class, field_name, expression, expression_type="PYTHON3"):
@@ -46,10 +47,10 @@ def calculate_field_if_exists(feature_class, field_name, expression, expression_
     for field in fields:
         if field.name == field_name:
             arcpy.management.CalculateField(feature_class, field_name, expression, expression_type)
-            print(f"Field '{field_name}' calculated in {feature_class}.")
+            logger.info(f"Field '{field_name}' calculated in {feature_class}.")
             break
     else:
-        print(f"Field '{field_name}' does not exist in {feature_class}.")
+        logger.info(f"Field '{field_name}' does not exist in {feature_class}.")
         return field_name
     
 # TODO - ensure this works on tables as well and rename
@@ -60,9 +61,9 @@ def drop_feature_class_if_exists(feature_class):
     """
     if arcpy.Exists(feature_class):
         arcpy.Delete_management(feature_class)
-        print(f"Feature class '{feature_class}' dropped.")
+        logger.info(f"Feature class '{feature_class}' dropped.")
     else:
-        print(f"Feature class '{feature_class}' does not exist.")
+        logger.info(f"Feature class '{feature_class}' does not exist.")
 
 
 def calculate_angle(geometry):
