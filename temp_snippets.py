@@ -461,3 +461,23 @@ def get_building_parcel_dict(spatial_join_output):
             if building_id not in building_parcel_dict:
                 building_parcel_dict[building_id] = parcel_id
     return building_parcel_dict
+
+
+# TODO - remove if not needed
+def get_parcel_building_dict(spatial_join_output):
+    """
+    Create a dictionary mapping parcel polygon IDs to building polygon IDs.
+    :param spatial_join_output: Path to the spatial join output feature class.
+    :return: Dictionary with 
+        keys: parcel polygon IDs as keys
+        values: a list of IDs of buildings contained by parcels.
+    """
+    parcel_building_dict = {}
+    with arcpy.da.SearchCursor(spatial_join_output, ["TARGET_FID", "JOIN_FID"]) as cursor:
+        for row in cursor:
+            parcel_id = row[0]
+            building_id = row[1]
+            if parcel_id not in parcel_building_dict:
+                parcel_building_dict[parcel_id] = []
+            parcel_building_dict[parcel_id].append(building_id)
+    return parcel_building_dict
