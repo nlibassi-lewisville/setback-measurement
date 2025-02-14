@@ -132,7 +132,7 @@ def get_parcel_building_join(parcel_polygon_fc, building_polygon_fc, output_fc):
 
 def get_building_parcel_join(building_polygon_fc, parcel_polygon_fc, output_fc):
     """
-    Perform a spatial join between building and parcel polygons.
+    Perform a spatial join between building and parcel polygons where building features are completely within a parcel feature
     parcel_polygon_fc: Input parcel polygon feature class
     building_polygon_fc: Input building polygon feature class
     output_fc: Output feature class for the join result
@@ -222,10 +222,10 @@ if __name__ == "__main__":
     #    fields="Shape"
     #    )
     ## was created in ArcGIS Pro - not yet run here
-    #building_polygon_fc = "extracted_footprints_nearmap_20240107_in_aoi_and_zones_r_th_otmu_li_ao"
+    building_polygon_fc = "extracted_footprints_nearmap_20240107_in_aoi_and_zones_r_th_otmu_li_ao"
     # for testing building_parcel_join use existing "buildings_with_parcel_ids"?
-    #building_parcel_join_fc = "building_parcel_join"
-    #get_building_parcel_join(parcel_polygon_fc, building_polygon_fc, building_parcel_join_fc)
+    building_parcel_join_fc = "building_parcel_join"
+    get_building_parcel_join(parcel_polygon_fc, building_polygon_fc, building_parcel_join_fc)
     get_parcel_id_table(parcel_polygon_fc, parcel_line_fc, parcel_id_table)
 
 
