@@ -408,15 +408,10 @@ def run(building_fc, parcel_line_fc, parcel_id_table, output_near_table_suffix, 
     # TODO - fix hardcoded names of feature classes and intermediate tables/fc's
     near_table = get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_side_fields=max_side_fields)
     near_table_with_parcel_info = get_near_table_with_parcel_info(near_table, parcel_line_fc, f"near_table_with_parcel_info_{output_near_table_suffix}")
+    # building_parcel_join_fc created in prep_data.py
     building_parcel_join_fc = "buildings_with_parcel_ids"
-    gdb_path = os.getenv("GEODATABASE")
-    #near_table_with_parcel_info = os.path.join(gdb_path, "near_table_with_parcel_info")
-    # parcel id table should have been created in prep_data.py - TODO - check this
     trimmed_table_name = "trimmed_near_table_with_parcel_info"
-    # TODO - uncomment after testing other functions and remove hardcoded paths
     trimmed_near_table = trim_near_table(near_table_with_parcel_info, building_parcel_join_fc, parcel_id_table)
-    #trimmed_near_table = os.path.join(gdb_path, "updated_trimmed_near_table_with_parcel_info")
-    #transformed_near_table = transform_detailed_near_table(trimmed_near_table, "trimmed_near_table_with_parcel_info")
     transformed_near_table = transform_detailed_near_table(trimmed_near_table, trimmed_table_name)
     full_output_fc_name = f"buildings_with_setback_values_{output_near_table_suffix}"
     full_output_fc = join_transformed_near_table_to_building_fc(transformed_near_table, building_fc, trimmed_table_name, full_output_fc_name)
