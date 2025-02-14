@@ -1,8 +1,9 @@
 import os
 import math
 from dotenv import load_dotenv
-import arcpy
 import pathlib
+import arcpy
+
 
 def set_environment():
     """
@@ -51,7 +52,7 @@ def calculate_field_if_exists(feature_class, field_name, expression, expression_
         print(f"Field '{field_name}' does not exist in {feature_class}.")
         return field_name
     
-# TODO - ensure this works on tables as well
+# TODO - ensure this works on tables as well and rename
 def drop_feature_class_if_exists(feature_class):
     """
     Drop a feature class if it exists.
@@ -80,4 +81,17 @@ def calculate_angle(geometry):
     # Normalize the angle to the range 0-180 (to account for bidirectional lines)
     if angle > 180:
         angle -= 180
-    return angle           
+    return angle
+
+
+# may or may not be necessary
+def list_fc_paths_in_gdb(gdb_path):
+    """
+    List all feature classes in a geodatabase.
+    :param gdb_path: Path to the geodatabase.
+    :return: List of feature class paths.
+    """
+    arcpy.env.workspace = gdb_path
+    fc_list = arcpy.ListFeatureClasses()
+    fc_paths = [os.path.join(gdb_path, fc) for fc in fc_list]
+    return fc_paths
