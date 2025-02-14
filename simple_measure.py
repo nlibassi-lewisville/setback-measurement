@@ -287,18 +287,20 @@ def get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_si
     :return: Path to the near table.
     """
     # for closest_count: 20 was not enough when using 150 feet search radius - realized 2/13 that 30 is not enough (though 300 feet search radius might be)
-    print("Generating near table...")
+    search_radius = "800 Feet"
+    closest_count = 50
+    print(f"Generating near table using nearest {closest_count} parcel lines within {search_radius} of each building feature...")
     near_table = os.path.join(os.getenv("GEODATABASE"), f"near_table_{output_near_table_suffix}")
     drop_feature_class_if_exists(near_table)
     arcpy.analysis.GenerateNearTable(
         in_features=building_fc,
         near_features=parcel_line_fc,
         out_table=near_table,
-        search_radius="800 Feet",
+        search_radius=search_radius,
         location="NO_LOCATION",
         angle="NO_ANGLE",
         closest="ALL",
-        closest_count=50,
+        closest_count=closest_count,
         method="PLANAR",
         distance_unit="Feet"
     )
@@ -633,7 +635,9 @@ def rename_fields(full_results_fc, trimmed_table_name, output_fc_name):
 
 def filter_results(results_fc, setback_count_max, filtered_fc_name):
     """
-    Filter the results feature class to include only those buildings with x number of setback distances.
+    Filter the results feature class to include only those buildings with:
+     - a max number of setback distances and 
+     - no setback distances of zero (meaning the building footprint extends beyond the parcel boundary)
     :param results_fc: Path to the results feature class.
     :param setback_count_max: Maximum number of setback distances to keep a building (those with too many distances may introduce errors)
     :param filtered_fc_name: Name of the filtered feature class.
@@ -649,13 +653,12 @@ def filter_results(results_fc, setback_count_max, filtered_fc_name):
     field_names = sorted([f.name for f in fields if "DIST" in f.name])
     with arcpy.da.UpdateCursor(filtered_fc_name, [field_names]) as cursor:
         for row in cursor:
-            value_count = 0
+            setback_values = []
             for i in range(0, len(field_names)):
                 if row[i] > -1:
-                    value_count += 1
-            if value_count > setback_count_max:
+                    setback_values.append(row[i])
+            if len(setback_values) > setback_count_max or 0 in setback_values:
                 cursor.deleteRow()
-    #arcpy.management.SelectFeatures(results_fc, filtered_fc, f"COUNT_DISTANCES >= {setback_count_max}")
     filtered_fc = os.path.join(os.getenv("FEATURE_DATASET"), filtered_fc_name)
     print(f"Check filtered results feature class at: {filtered_fc}")
     return filtered_fc
