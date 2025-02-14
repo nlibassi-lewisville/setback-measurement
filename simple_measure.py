@@ -59,32 +59,12 @@ def get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_si
     return near_table
 
 
-# TODO - remove if not needed
-def get_parcel_building_dict(spatial_join_output):
-    """
-    Create a dictionary mapping parcel polygon IDs to building polygon IDs.
-    :param spatial_join_output: Path to the spatial join output feature class.
-    :return: Dictionary with 
-        keys: parcel polygon IDs as keys
-        values: a list of IDs of buildings contained by parcels.
-    """
-    parcel_building_dict = {}
-    with arcpy.da.SearchCursor(spatial_join_output, ["TARGET_FID", "JOIN_FID"]) as cursor:
-        for row in cursor:
-            parcel_id = row[0]
-            building_id = row[1]
-            if parcel_id not in parcel_building_dict:
-                parcel_building_dict[parcel_id] = []
-            parcel_building_dict[parcel_id].append(building_id)
-    return parcel_building_dict
-
-
-
-def get_near_table_with_parcel_info(near_table, parcel_line_fc):
+def get_near_table_with_parcel_info(near_table, parcel_line_fc, output_table_name):
     """
     Join near table with table from parcel line feature class to get parcel line and polygon IDs as well as shared boundary info.
     :param near_table: Path to the near table.
     :param parcel_line_fc: Path to the parcel line feature class.
+    :param output_table_name: Name of the output table.
     :return: Path to the near table with parcel info.
     """
     parcel_line_df = pd.DataFrame(arcpy.da.TableToNumPyArray(parcel_line_fc, ["parcel_line_OID", "shared_boundary", "parcel_polygon_OID"]))
@@ -104,7 +84,7 @@ def get_near_table_with_parcel_info(near_table, parcel_line_fc):
     logger.debug(merged_df[merged_df["IN_FID"] == 2])
     output_fields = [(col, "f8" if "DIST" in col else ("i4" if merged_df[col].dtype.kind in 'i' else "<U50")) for col in merged_df.columns]
     output_array = np.array([tuple(row) for row in merged_df.to_records(index=False)], dtype=output_fields)
-    output_table = os.path.join(os.getenv("GEODATABASE"), "near_table_with_parcel_info_20250212")
+    output_table = os.path.join(os.getenv("GEODATABASE"), output_table_name)
     drop_feature_class_if_exists(output_table)
     arcpy.da.NumPyArrayToTable(output_array, output_table)
     return output_table
@@ -391,9 +371,12 @@ def get_averages(results_fc, output_table_name):
     drop_feature_class_if_exists(output_table_name)
     arcpy.management.CopyRows(results_fc, output_table_name)
     fields = arcpy.ListFields(results_fc)
-
+    facing_street_total = 0
+    facing_street_count = 0
+    other_side_total = 0
+    other_side_count = 0
     field_names = [f.name for f in fields if "DIST" in f.name]
-    with arcpy.da.UpdateCursor(output_table_name, ["AVERAGE_DISTANCES"]) as cursor:
+    with arcpy.da.SearchCursor(output_table_name, field_names) as cursor:
         for row in cursor:
             total = 0
             count = 0
@@ -407,13 +390,14 @@ def get_averages(results_fc, output_table_name):
     return output_table_name
 
 
-def run(building_fc, parcel_line_fc, output_near_table_suffix, spatial_join_output, max_side_fields=4):
+def run(building_fc, parcel_line_fc, parcel_id_table, output_near_table_suffix, max_side_fields=4):
     """
     Run the process to measure distances between buildings and parcels.
     :param building_fc - string: Path to the building feature class.
     :param parcel_line_fc - string: Path to the parcel line feature class.
+    :param parcel_id_table - string: Path to the table that links each parcel polygon OID to the parcel line OIDs that 
+        share a boundary with the given polygon (output of get_parcel_id_table() in prep_data.py).
     :param output_near_table_suffix - string: Suffix to append to the output near table name.
-    :param spatial_join_output: Path to the spatial join output feature class.
     :param parcel_street_join - string: Path to feature class resulting from join of parcel line feature class with streets feature class.
     """
     start_time = time.time()
@@ -421,23 +405,24 @@ def run(building_fc, parcel_line_fc, output_near_table_suffix, spatial_join_outp
     # set environment to feature dataset
     set_environment()
     
-    # TODO - uncomment after testing other functions
+    # TODO - fix hardcoded names of feature classes and intermediate tables/fc's
     near_table = get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_side_fields=max_side_fields)
-    near_table_with_parcel_info = get_near_table_with_parcel_info(near_table, parcel_line_fc)
+    near_table_with_parcel_info = get_near_table_with_parcel_info(near_table, parcel_line_fc, f"near_table_with_parcel_info_{output_near_table_suffix}")
     building_parcel_join_fc = "buildings_with_parcel_ids"
     gdb_path = os.getenv("GEODATABASE")
-    near_table_with_parcel_info = os.path.join(gdb_path, "near_table_with_parcel_info_20250212")
-    parcel_id_table = os.path.join(gdb_path, "parcel_id_table_20250212")
+    #near_table_with_parcel_info = os.path.join(gdb_path, "near_table_with_parcel_info")
+    # parcel id table should have been created in prep_data.py - TODO - check this
     trimmed_table_name = "trimmed_near_table_with_parcel_info"
     # TODO - uncomment after testing other functions and remove hardcoded paths
     trimmed_near_table = trim_near_table(near_table_with_parcel_info, building_parcel_join_fc, parcel_id_table)
-    trimmed_near_table = os.path.join(gdb_path, "updated_trimmed_near_table_with_parcel_info")
-    transformed_near_table = transform_detailed_near_table(trimmed_near_table, "trimmed_near_table_with_parcel_info")
-    full_output_fc_name = "buildings_with_setback_values_20250213"
+    #trimmed_near_table = os.path.join(gdb_path, "updated_trimmed_near_table_with_parcel_info")
+    #transformed_near_table = transform_detailed_near_table(trimmed_near_table, "trimmed_near_table_with_parcel_info")
+    transformed_near_table = transform_detailed_near_table(trimmed_near_table, trimmed_table_name)
+    full_output_fc_name = f"buildings_with_setback_values_{output_near_table_suffix}"
     full_output_fc = join_transformed_near_table_to_building_fc(transformed_near_table, building_fc, trimmed_table_name, full_output_fc_name)
     clean_fc_name = f"clean_{full_output_fc_name}"
     clean_output_fc = rename_fields(full_output_fc, trimmed_table_name, clean_fc_name)
-    filtered_fc_name = "filtered_results_20250213"
+    filtered_fc_name = f"filtered_results_{output_near_table_suffix}"
     filtered_fc = filter_results(clean_output_fc, 4, filtered_fc_name)
 
     # for testing only:
@@ -453,8 +438,8 @@ if __name__ == "__main__":
     # TODO - remove lines below after testing parallel field population
     set_environment()
     building_fc = "extracted_footprints_nearmap_20240107_in_aoi_and_zones_r_th_otmu_li_ao"
-    #parcel_line_fc = "split_parcel_lines_in_zones_r_th_otmu_li_ao_20250128"
     parcel_line_fc = "parcel_lines_from_polygons_TEST"
-    output_near_table_suffix = "nm_20240107_20250211"
-    spatial_join_output = "spatial_join_buildings_completely_within_parcels"
-    run(building_fc, parcel_line_fc, output_near_table_suffix, spatial_join_output, max_side_fields=4)
+    gdb_path = os.getenv("GEODATABASE")
+    parcel_id_table = os.path.join(gdb_path, "parcel_id_table_20250212") 
+    output_near_table_suffix = "nm_20240107_20250214"
+    run(building_fc, parcel_line_fc, parcel_id_table, output_near_table_suffix, max_side_fields=4)
