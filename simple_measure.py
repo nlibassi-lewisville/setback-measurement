@@ -374,7 +374,7 @@ def get_average(results_fc, setback_type):
     fields = arcpy.ListFields(results_fc)
     setback_sum = 0
     setback_count = 0
-    field_names = [f.name for f in fields if setback_type in f.name]
+    field_names = [f.name for f in fields if setback_type in f.name and "DIST" in f.name]
     with arcpy.da.SearchCursor(results_fc, field_names) as cursor:
         for row in cursor:
             for i in range(0, len(field_names)):
@@ -382,7 +382,33 @@ def get_average(results_fc, setback_type):
                     setback_sum += row[i]
                     setback_count += 1
     setback_average = setback_sum / setback_count
-    return { "sum": setback_sum, "count": setback_count, "average": setback_average }
+    results_dict = {"sum": setback_sum, "count": setback_count, "average": setback_average}
+    print(f"sum, count, and average for {setback_type}: {results_dict}")
+    return results_dict
+
+
+def create_average_table(filtered_fc, output_table_name):
+    """
+    Create a table holding average setback distances for building sides facing streets (non) and for those not facing streets (shared boundaries).
+    :param output_table_name - string: Name of the output table.
+    :return: Path to the output table.
+    """
+    drop_feature_class_if_exists(output_table_name)
+    arcpy.management.CreateTable(os.getenv("GEODATABASE"), output_table_name)
+    output_table = os.path.join(os.getenv("GEODATABASE"), output_table_name)
+    arcpy.management.AddField(output_table, "setback_type", "TEXT")
+    arcpy.management.AddField(output_table, "sum", "DOUBLE")
+    arcpy.management.AddField(output_table, "count", "LONG")
+    arcpy.management.AddField(output_table, "average", "DOUBLE")
+    facing_street_averages = get_average(filtered_fc, "FACING_STREET")
+    other_side_averages = get_average(filtered_fc, "OTHER_SIDE")
+    output_table_view = os.path.join(os.getenv("GEODATABASE"), "output_table_view")
+    arcpy.management.MakeTableView(output_table, output_table_view)
+    with arcpy.da.InsertCursor(output_table_view, ["setback_type", "sum", "count", "average"]) as cursor:
+        cursor.insertRow(["facing street"] + list(facing_street_averages.values()))
+        cursor.insertRow(["other side"] + list(other_side_averages.values()))
+    print(f"Check average table at: {output_table}")
+    return output_table
 
 
 def run(building_fc, parcel_line_fc, parcel_id_table, output_near_table_suffix, max_side_fields=4):
@@ -414,13 +440,15 @@ def run(building_fc, parcel_line_fc, parcel_id_table, output_near_table_suffix, 
     clean_output_fc = rename_fields(full_output_fc, trimmed_table_name, clean_fc_name)
     filtered_fc_name = f"filtered_results_{output_near_table_suffix}"
     filtered_fc = filter_results(clean_output_fc, 4, filtered_fc_name)
-
+    create_average_table(filtered_fc, f"averages_{output_near_table_suffix}")
+    
     #temp for testing average function
     #filtered_fc = filtered_fc_name
-    facing_street_averages = get_average(filtered_fc, "FACING_STREET")
-    other_side_averages = get_average(filtered_fc, "OTHER_SIDE")
-    print(f"facing street averages: {facing_street_averages}")
-    print(f"other side averages: {other_side_averages}")
+    #facing_street_averages = get_average(filtered_fc, "FACING_STREET")
+    #other_side_averages = get_average(filtered_fc, "OTHER_SIDE")
+    #print(f"facing street averages: {facing_street_averages}")
+    #print(f"other side averages: {other_side_averages}")
+    #create_average_table("filtered_results_nm_20240107_20250217", f"averages_{output_near_table_suffix}")
 
     # for testing only:
     #rename_fields(full_output_fc_name, trimmed_table_name)
@@ -438,5 +466,5 @@ if __name__ == "__main__":
     parcel_line_fc = "parcel_lines_from_polygons_TEST"
     gdb_path = os.getenv("GEODATABASE")
     parcel_id_table = os.path.join(gdb_path, "parcel_id_table_20250212") 
-    output_near_table_suffix = "nm_20240107_20250214"
+    output_near_table_suffix = "nm_20240107_20250217"
     run(building_fc, parcel_line_fc, parcel_id_table, output_near_table_suffix, max_side_fields=4)
