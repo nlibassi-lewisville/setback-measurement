@@ -216,12 +216,6 @@ if __name__ == "__main__":
     #parcel_line_fc = "subset_parcel_lines_from_polygons_TEST_20250212"
     parcel_id_table = os.path.join(os.getenv("GEODATABASE"), "parcel_id_table_20250212")
     #create_parcel_line_fc(parcel_polygon_fc, parcel_line_fc, "parcel_polygon_OID")
-    #identify_shared_parcel_boundaries(parcel_polygon_fc, parcel_line_fc, "shared_boundary")
-    #arcpy.management.DeleteIdentical(
-    #    in_dataset=parcel_line_fc,
-    #    fields="Shape"
-    #    )
-    ## was created in ArcGIS Pro - not yet run here
     building_polygon_fc = "extracted_footprints_nearmap_20240107_in_aoi_and_zones_r_th_otmu_li_ao"
     # for testing building_parcel_join use existing "buildings_with_parcel_ids"?
     building_parcel_join_fc = "building_parcel_join"
