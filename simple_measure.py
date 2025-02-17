@@ -94,7 +94,7 @@ def trim_near_table(near_table, building_parcel_join_fc, parcel_id_table):
     """
     Trim the near table to include only the nearest parcel lines.
     :param near_table: Path to the near table (that includes parcel info).
-    :param building_parcel_join_fc: Path to the feature class that links each building polygon ID to the ID of the parcel polygon it is contained by.
+    :param building_parcel_join_fc: Path to the feature class (or name if in working feature dataset) that links each building polygon ID to the ID of the parcel polygon it is contained by.
     :param parcel_id_table: Path to the table that links each parcel polygon OID to the parcel line OIDs that share a boundary with the given polygon.
     :return: Path to the trimmed near table.
     """
@@ -411,15 +411,16 @@ def create_average_table(filtered_fc, output_table_name):
     return output_table
 
 
-def run(building_fc, parcel_line_fc, parcel_id_table, output_near_table_suffix, max_side_fields=4):
+def run(building_fc, parcel_line_fc, building_parcel_join_fc, parcel_id_table, output_near_table_suffix, max_side_fields=4):
     """
     Run the process to measure distances between buildings and parcels.
-    :param building_fc - string: Path to the building feature class.
+    :param building_fc - string: Path to the building (polygon) feature class.
     :param parcel_line_fc - string: Path to the parcel line feature class.
+    :param building_parcel_join_fc: Path to the feature class (or name if in working feature dataset) that links each building polygon ID to the ID of the parcel polygon it is contained by.
     :param parcel_id_table - string: Path to the table that links each parcel polygon OID to the parcel line OIDs that 
         share a boundary with the given polygon (output of get_parcel_id_table() in prep_data.py).
     :param output_near_table_suffix - string: Suffix to append to the output near table name.
-    :param parcel_street_join - string: Path to feature class resulting from join of parcel line feature class with streets feature class.
+    :param max_side_fields - int: Maximum number of fields to add to the near table for holding info on parcel boundary sides.
     """
     start_time = time.time()
     logger.info(f"Starting setback distance calculation with fields holding info on adjacent streets {time.ctime(start_time)}")
@@ -430,7 +431,7 @@ def run(building_fc, parcel_line_fc, parcel_id_table, output_near_table_suffix, 
     near_table = get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_side_fields=max_side_fields)
     near_table_with_parcel_info = get_near_table_with_parcel_info(near_table, parcel_line_fc, f"near_table_with_parcel_info_{output_near_table_suffix}")
     # building_parcel_join_fc created in prep_data.py
-    building_parcel_join_fc = "buildings_with_parcel_ids"
+    #building_parcel_join_fc = "buildings_with_parcel_ids"
     trimmed_table_name = "trimmed_near_table_with_parcel_info"
     trimmed_near_table = trim_near_table(near_table_with_parcel_info, building_parcel_join_fc, parcel_id_table)
     transformed_near_table = transform_detailed_near_table(trimmed_near_table, trimmed_table_name)
@@ -460,11 +461,11 @@ def run(building_fc, parcel_line_fc, parcel_id_table, output_near_table_suffix, 
 
 # Run the script
 if __name__ == "__main__":
-    # TODO - remove lines below after testing parallel field population
     set_environment()
     building_fc = "extracted_footprints_nearmap_20240107_in_aoi_and_zones_r_th_otmu_li_ao"
     parcel_line_fc = "parcel_lines_from_polygons_TEST"
     gdb_path = os.getenv("GEODATABASE")
     parcel_id_table = os.path.join(gdb_path, "parcel_id_table_20250212") 
     output_near_table_suffix = "nm_20240107_20250217"
-    run(building_fc, parcel_line_fc, parcel_id_table, output_near_table_suffix, max_side_fields=4)
+    building_parcel_join_fc = "buildings_with_parcel_ids"
+    run(building_fc, parcel_line_fc, building_parcel_join_fc, parcel_id_table, output_near_table_suffix, max_side_fields=4)
