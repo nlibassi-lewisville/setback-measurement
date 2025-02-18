@@ -150,7 +150,7 @@ def calculate_angle_from_points(start, end):
     return angle
 
 # using a single previous point and current point
-with arcpy.da.SearchCursor("points_from_parcel_lines_from_polygons_TEST", ["OBJECTID", "SHAPE@"]) as cursor:
+with arcpy.da.SearchCursor("points_from_parcel_lines_from_polygons", ["OBJECTID", "SHAPE@"]) as cursor:
     previous_geom = None
     for row in cursor:
         if row[0] == 1:
@@ -163,7 +163,7 @@ with arcpy.da.SearchCursor("points_from_parcel_lines_from_polygons_TEST", ["OBJE
                 previous_geom = row[1]
 
 # using two previous points and current point
-with arcpy.da.SearchCursor("points_from_parcel_lines_from_polygons_TEST", ["OBJECTID", "SHAPE@"]) as cursor:
+with arcpy.da.SearchCursor("points_from_parcel_lines_from_polygons", ["OBJECTID", "SHAPE@"]) as cursor:
     previous_geom_1 = None
     previous_geom_2 = None
     for row in cursor:
@@ -184,9 +184,9 @@ with arcpy.da.SearchCursor("points_from_parcel_lines_from_polygons_TEST", ["OBJE
 
 # creating a feature class from coordinate pairs (in Python window in Pro)
 
-spatial_reference = arcpy.Describe("parcel_lines_from_polygons_TEST").spatialReference
+spatial_reference = arcpy.Describe("parcel_lines_from_polygons").spatialReference
 point_list = []
-with arcpy.da.SearchCursor("parcel_lines_from_polygons_TEST", ["SHAPE@"]) as cursor:
+with arcpy.da.SearchCursor("parcel_lines_from_polygons", ["SHAPE@"]) as cursor:
     for row in cursor:
         coords = []
         coords.append(row[0].positionAlongLine(0.5,True).firstPoint.X)
@@ -200,7 +200,7 @@ arcpy.management.CopyFeatures(points, "test2_points_from_coords")
 
 
 # true centroid test
-with arcpy.da.SearchCursor("parcel_lines_from_polygons_TEST", ["OBJECTID", "SHAPE@"]) as cursor:
+with arcpy.da.SearchCursor("parcel_lines_from_polygons", ["OBJECTID", "SHAPE@"]) as cursor:
     for row in cursor:
         print(f"OID: {row[0]}, X of centroid: {row[1].centroid.X}, X of true centroid: {row[1].trueCentroid.X}")
 #OID: 331, X of centroid: 2429063.533212676, X of true centroid: 2429064.295714088 (U-shaped (upside down) with rounded corners)
@@ -215,7 +215,7 @@ with arcpy.da.SearchCursor("parcel_lines_from_polygons_TEST", ["OBJECTID", "SHAP
 #OID: 5797, X of centroid: 2429745.6830369025, X of true centroid: 2429741.278611942 (Upside down backwards L with 90 degree corner)
 
 # why would hasCurves always return False for these lines?
-with arcpy.da.SearchCursor("parcel_lines_from_polygons_TEST", ["OBJECTID", "SHAPE@"]) as cursor:
+with arcpy.da.SearchCursor("parcel_lines_from_polygons", ["OBJECTID", "SHAPE@"]) as cursor:
     for row in cursor:
         print(f"OID: {row[0]}, has curves: {row[1].hasCurves}")
 #OID: 331, has curves: False
@@ -396,7 +396,7 @@ def main(line_fc, workspace):
 # Example usage:
 if __name__ == "__main__":
     set_environment()
-    input_line_fc = "parcel_lines_from_polygons_TEST"
+    input_line_fc = "parcel_lines_from_polygons"
     workspace = os.getenv("GEODATABASE")
     main(input_line_fc, workspace)
 
@@ -481,3 +481,38 @@ def get_parcel_building_dict(spatial_join_output):
                 parcel_building_dict[parcel_id] = []
             parcel_building_dict[parcel_id].append(building_id)
     return parcel_building_dict
+
+
+def get_building_parcel_df(spatial_join_output):
+    """
+    Create a dataframe holding building polygon IDs in TARGET_FID field and the id of the parcel in which each building is found in parcel_polygon_OID.
+    :param spatial_join_output: Path to the spatial join output feature class.
+    :return: a pandas dataframe with columns for building polygon IDs and parcel polygon IDs.
+    """
+    # TARGET_FID
+    fields = ["TARGET_FID", "parcel_polygon_OID"]
+    #building_parcel_df = pd.DataFrame(arcpy.da.TableToNumPyArray(spatial_join_output, ["JOIN_FID", "TARGET_FID"]))
+    building_parcel_df = pd.DataFrame(data=arcpy.da.SearchCursor(spatial_join_output, fields))
+    #building_parcel_df.columns = ["building_polygon_OID", "parcel_polygon_OID"]
+    building_parcel_df.columns = ["IN_FID", "parcel_polygon_OID"]
+    return building_parcel_df
+
+
+def get_parcel_building_join(parcel_polygon_fc, building_polygon_fc, output_fc):
+    """
+    Perform a spatial join between parcel and building polygons.
+    parcel_polygon_fc: Input parcel polygon feature class
+    building_polygon_fc: Input building polygon feature class
+    output_fc: Output feature class for the join result
+    """
+    arcpy.analysis.SpatialJoin(
+    target_features=parcel_polygon_fc,
+    join_features=building_polygon_fc,
+    out_feature_class=output_fc,
+    join_operation="JOIN_ONE_TO_MANY",
+    join_type="KEEP_ALL",
+    match_option="COMPLETELY_CONTAINS",
+    search_radius=None,
+    distance_field_name="",
+    match_fields=None
+    )
