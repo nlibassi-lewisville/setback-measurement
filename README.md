@@ -81,7 +81,7 @@ Using the Jan 2024 Nearmap data, the area of interest has 1494 buildings, but bu
 - those with any setback value of 0 (meaning the building footprint was not entirely within the parcel feature)
 - those buildings that had more than four surrounding parcel boundary segments - in the screenshot below, building 542 is an example of one of those that were not included - on the west side of the building, there are four separate parcel line segments - since the distances to all of those segments were found, those distances would skew the average. (This could be addressed in the future if necessary)
 
-![Alt text](img\setback-sample-results.png)
+![sample results](.\img\setback-sample-results.png)
 
 TODO - finish this section
 
@@ -91,4 +91,4 @@ Results feature classes and tables:
 - 'clean_buildings...' feature class - unfiltered results with setback values for all buildings
 
 
-![Alt text](img\setback-sample-average-table.png)
+![sample averages](.\img\setback-sample-average-table.png)
