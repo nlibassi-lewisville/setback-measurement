@@ -181,9 +181,9 @@ def get_points_for_splitting(input_point_fc, line_oid_lists, angle_threshold):
                         # TODO adjust threshold or add as a parameter
                         if start_end_angle > 10:
                             # TODO add line fc as a parameter to the function
-                            split_coords = get_split_point_coords_by_split_type("parcel_lines_from_polygons_TEST", oid, "midpoint")
+                            split_coords = get_split_point_coords_by_split_type("parcel_lines_from_polygons", oid, "midpoint")
                         else:
-                            split_coords = get_split_point_coords_by_split_type("parcel_lines_from_polygons_TEST", oid, "thirds")
+                            split_coords = get_split_point_coords_by_split_type("parcel_lines_from_polygons", oid, "thirds")
                         for pair in split_coords:
                             midpoints_and_thirds_coords.append(pair)
                     previous_geom_1 = previous_geom_2
@@ -401,14 +401,14 @@ def run(min_vertices=2):
     #input_line_fc_name = "parcel_lines_in_zones_r_th_otmu_li_ao"
 
     # all parcel lines
-    input_line_fc_name = "parcel_lines_from_polygons_TEST"
+    input_line_fc_name = "parcel_lines_from_polygons"
     #subset of parcel lines for testing
-    #input_line_fc_name = "subset_parcel_lines_from_polygons_TEST"
+    #input_line_fc_name = "subset_parcel_lines_from_polygons"
 
     # all points from parcel lines
-    input_point_fc_name = "points_from_parcel_lines_from_polygons_TEST"
+    input_point_fc_name = "points_from_parcel_lines_from_polygons"
     #subset of points from parcel lines for testing
-    #input_point_fc_name = "subset2_points_from_parcel_lines_from_polygons_TEST"
+    #input_point_fc_name = "subset2_points_from_parcel_lines_from_polygons"
 
     feature_dataset = os.getenv("FEATURE_DATASET")
     input_fc = os.path.join(feature_dataset, input_line_fc_name)

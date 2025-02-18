@@ -66,7 +66,7 @@ def main(line_fc, workspace):
 # Example usage:
 if __name__ == "__main__":
     set_environment()
-    input_line_fc = r"parcel_lines_from_polygons_TEST"
+    input_line_fc = r"parcel_lines_from_polygons"
     feature_dataset = os.getenv("FEATURE_DATASET")
     workspace = feature_dataset
     main(input_line_fc, workspace)
