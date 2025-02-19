@@ -3,7 +3,7 @@ import arcpy
 import time
 import pandas as pd
 import numpy as np
-from shared import set_environment, drop_feature_class_if_exists
+from shared import set_environment, drop_gdb_item_if_exists
 from base_logger import logger
 
 
@@ -22,7 +22,7 @@ def get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_si
     closest_count = 50
     logger.info(f"Generating near table using nearest {closest_count} parcel lines within {search_radius} of each building feature...")
     near_table = os.path.join(os.getenv("GEODATABASE"), f"near_table_{output_near_table_suffix}")
-    drop_feature_class_if_exists(near_table)
+    drop_gdb_item_if_exists(near_table)
     arcpy.analysis.GenerateNearTable(
         in_features=building_fc,
         near_features=parcel_line_fc,
@@ -85,7 +85,7 @@ def get_near_table_with_parcel_info(near_table, parcel_line_fc, output_table_nam
     output_fields = [(col, "f8" if "DIST" in col else ("i4" if merged_df[col].dtype.kind in 'i' else "<U50")) for col in merged_df.columns]
     output_array = np.array([tuple(row) for row in merged_df.to_records(index=False)], dtype=output_fields)
     output_table = os.path.join(os.getenv("GEODATABASE"), output_table_name)
-    drop_feature_class_if_exists(output_table)
+    drop_gdb_item_if_exists(output_table)
     arcpy.da.NumPyArrayToTable(output_array, output_table)
     return output_table
 
@@ -127,17 +127,20 @@ def trim_near_table(near_table, building_parcel_join_fc, parcel_id_table):
         rebuild_index="NO_REBUILD_INDEX",
         join_operation=""
     )
-    test_join_table = os.path.join(os.getenv("GEODATABASE"), "test_trimmed_near_table_after_first_join")
-    arcpy.management.CopyRows(trimmed_near_table_view, test_join_table)
-
-    fields = arcpy.ListFields(test_join_table)
+    # TODO remove this comment if no issues - removed the text 'test_' in following four lines 2/18/25
+    join_table = os.path.join(os.getenv("GEODATABASE"), "trimmed_near_table_after_first_join")
+    arcpy.management.CopyRows(trimmed_near_table_view, join_table)
+    fields = arcpy.ListFields(join_table)
     logger.debug(f"Fields in trimmed_near_table_view after FIRST join: {[f.name for f in fields]}")
 
+    # TODO ensure building_parcel_join_fc is fc name only
+    expression = f"int(!{building_parcel_join_fc}.enclosing_parcel_polygon_oid!)"
     # why was original field_type TEXT here?
     arcpy.management.CalculateField(
         in_table=trimmed_near_table_view,
         field="intended_parcel_polygon_OID",
-        expression="int(!buildings_with_parcel_ids.enclosing_parcel_polygon_oid!)",
+        #expression="int(!buildings_with_parcel_ids.enclosing_parcel_polygon_oid!)",
+        expression=expression,
         expression_type="PYTHON3",
         code_block="",
         field_type="LONG",
@@ -263,7 +266,7 @@ def transform_detailed_near_table(near_table, field_prefix):
     output_array = np.array([tuple(row) for row in output_df.to_records(index=False)], dtype=output_fields)
     gdb_path = os.getenv("GEODATABASE")
     transformed_table_path = os.path.join(gdb_path, "transformed_near_table_with_street_info_parcel_TEST_20250212")
-    drop_feature_class_if_exists(transformed_table_path)
+    drop_gdb_item_if_exists(transformed_table_path)
     arcpy.da.NumPyArrayToTable(output_array, transformed_table_path)
     logger.info(f"Check transformed near table written to: {transformed_table_path}")
     return transformed_table_path
@@ -294,7 +297,7 @@ def join_transformed_near_table_to_building_fc(near_table, building_fc, trimmed_
         join_operation=""
     )
     output_fc = os.path.join(os.getenv("FEATURE_DATASET"), output_fc_name)
-    drop_feature_class_if_exists(output_fc)
+    drop_gdb_item_if_exists(output_fc)
     arcpy.management.CopyFeatures(building_layer, output_fc_name)
     logger.info(f"Check full output feature class at: {output_fc}")
     return output_fc
@@ -340,7 +343,7 @@ def filter_results(results_fc, setback_count_max, filtered_fc_name):
     :param filtered_fc_name: Name of the filtered feature class.
     :return filtered_fc: Path to the filtered feature class.
     """
-    drop_feature_class_if_exists(filtered_fc_name)
+    drop_gdb_item_if_exists(filtered_fc_name)
     #results_fc_copy = os.path.join(os.getenv("FEATURE_DATASET"), "results_fc_copy")
     arcpy.management.CopyFeatures(results_fc, filtered_fc_name)
     fields = arcpy.ListFields(results_fc)
@@ -369,7 +372,7 @@ def get_average(results_fc, setback_type):
     :return: dict containing the sum, count, and average of the setback distances.
     """
     #output_table_name = f"averages_{setback_type}_{output_table_suffix}"
-    #drop_feature_class_if_exists(output_table_name)
+    #drop_gdb_item_if_exists(output_table_name)
     #arcpy.management.CopyRows(results_fc, output_table_name)
     fields = arcpy.ListFields(results_fc)
     setback_sum = 0
@@ -393,7 +396,7 @@ def create_average_table(filtered_fc, output_table_name):
     :param output_table_name - string: Name of the output table.
     :return: Path to the output table.
     """
-    drop_feature_class_if_exists(output_table_name)
+    drop_gdb_item_if_exists(output_table_name)
     arcpy.management.CreateTable(os.getenv("GEODATABASE"), output_table_name)
     output_table = os.path.join(os.getenv("GEODATABASE"), output_table_name)
     arcpy.management.AddField(output_table, "setback_type", "TEXT")
@@ -463,9 +466,11 @@ def run(building_fc, parcel_line_fc, building_parcel_join_fc, parcel_id_table, o
 if __name__ == "__main__":
     set_environment()
     building_fc = "extracted_footprints_nearmap_20240107_in_aoi_and_zones_r_th_otmu_li_ao"
-    parcel_line_fc = "parcel_lines_from_polygons_TEST"
+    parcel_line_fc = "parcel_lines_from_polygons_20250218"
     gdb_path = os.getenv("GEODATABASE")
-    parcel_id_table = os.path.join(gdb_path, "parcel_id_table_20250212") 
-    output_near_table_suffix = "nm_20240107_20250217"
-    building_parcel_join_fc = "buildings_with_parcel_ids"
+    parcel_id_table_name = "parcel_id_table_20250218"
+    parcel_id_table = os.path.join(gdb_path, parcel_id_table_name)
+    output_near_table_suffix = "nm_20240107_20250218"
+    #building_parcel_join_fc = "buildings_with_parcel_ids"
+    building_parcel_join_fc = "building_parcel_join_20250218"
     run(building_fc, parcel_line_fc, building_parcel_join_fc, parcel_id_table, output_near_table_suffix, max_side_fields=4)
