@@ -64,14 +64,15 @@ These scripts require:
 
 1. Ensure all dependencies are installed and that ArcGIS Pro/ArcMap is available with necessary licenses.
 2. Configure the .env file to define FEATURE_DATASET and GEODATABASE paths according to the file '.env.example'.
-3. Run prep_data.py before running simple_measure.py. The following outputs of prep_data.py are used as inputs of simple_measure.py:
+3. In prep_data.py, modify the values assigned to variables under 'BEFORE RUNNING' 
+4. Run prep_data.py before running simple_measure.py. The following outputs of prep_data.py are used as inputs of simple_measure.py:
     1. parcel_line_fc - parcel boundary line feature class created from a parcel boundary polygon feature class
     2. building_parcel_join_fc - a feature class that contains buildings with attributes of the parcel in which each building lies
     3. parcel_id_table - a table with parcel polygon IDs and the line IDs that make up their boundaries
-4. simple_measure.py
+4. For simple_measure.py
     1. in get_near_table(), the values of search_radius and closest_count can be modified as needed
     2. in run(), the value of max_side_fields can be modified as needed
-    3. edit the inputs of the run() function that appear in the lines before calling run() in simple_measure.py
+    3. edit the inputs of the run() function that appear in the lines before calling run() in simple_measure.py (see comment 'BEFORE RUNNING')
 
 Both scripts can be run as a standalone Python script from a terminal (`python path/to/script.py` or `propy path/to/script.py` if using the 'propy' environment provided with ArcGIS Pro).
 
@@ -80,8 +81,9 @@ Both scripts can be run as a standalone Python script from a terminal (`python p
 Using the Jan 2024 Nearmap data, the area of interest has 1494 buildings, but buildings in the following situations were not included when calculating the averages:
 - those with any setback value of 0 (meaning the building footprint was not entirely within the parcel feature)
 - those buildings that had more than four surrounding parcel boundary segments - in the screenshot below, building 542 is an example of one of those that were not included - on the west side of the building, there are four separate parcel line segments - since the distances to all of those segments were found, those distances would skew the average. (This could be addressed in the future if necessary)
+- buildings with a footprint that spanned multiple parcels
 
-![sample results](.\img\setback-sample-results.png)
+![sample results](/img/setback-sample-results.png)
 
 TODO - finish this section
 
@@ -91,4 +93,4 @@ Results feature classes and tables:
 - 'clean_buildings...' feature class - unfiltered results with setback values for all buildings
 
 
-![sample averages](.\img\setback-sample-average-table.png)
+![sample averages](/img/setback-sample-average-table.png)
