@@ -196,7 +196,6 @@ point_list
 [[2430329.0269888253, 7065293.877205671], [2430446.8901319727, 7065241.751775163], [2430515.0806996343, 7065314.388608029]]
 points = [arcpy.PointGeometry(arcpy.Point(*c), spatial_reference) for c in point_list]
 arcpy.management.CopyFeatures(points, "test2_points_from_coords")
-#<Result 'C:\\ArcGIS\\Projects\\setback_measurement_2276\\setback_measurement_2276.gdb\\test2_points_from_coords'>
 
 
 # true centroid test
