@@ -110,4 +110,4 @@ If necessary, the results could be improved by:
 
 - Using building footprints extracted from January 2025 aerial photos
 - Manually removing problematic input building footprint polygon features
-- Including street names in the results - at an earlier version of the process, street names for 'facing streets' were added to the results table. This worked well except in the case of corner lots where a single parcel boundary segment faces two different streets. This can be resolved by splitting streets at (curved) corners - this was partially implemented in measure_per_parcel.py but abandoned after it was deemed unnecessary
+- Including street names in the results - at an earlier version of the process, street names for 'facing streets' were added to the results table. This worked well except in the case of corner lots where a single parcel boundary segment faces two different streets. This can be resolved by splitting streets at (curved) corners - this was partially implemented in reference\measure_per_parcel.py but abandoned after it was deemed unnecessary. Other related attempts are also found in the 'reference' directory.
