@@ -255,11 +255,11 @@ for g in geometries:
 
 
 # try this call of GenerateNearTable using closet_count = x
-
+output_near_table = 'path_to_your_output_near_table'
 arcpy.analysis.GenerateNearTable(
     in_features="extracted_footprints_nm_20240107_in_aoi_and_zones_r_th_otmu_li_ao",
     near_features="parcel_lines_from_polygons",
-    out_table=r"C:\ArcGIS\Projects\setback_measurement_2276\setback_measurement_2276.gdb\near_table_nm_20240107",
+    out_table=output_near_table,
     search_radius="150 Feet",
     location="NO_LOCATION",
     angle="NO_ANGLE",
@@ -269,7 +269,7 @@ arcpy.analysis.GenerateNearTable(
     distance_unit="Feet"
 )
 
-output_near_table = r"C:\ArcGIS\Projects\setback_measurement_2276\setback_measurement_2276.gdb\near_table_nm_20240107"
+
 
 arcpy.analysis.GenerateNearTable(
     in_features="extracted_footprints_nm_20240107_in_aoi_and_zones_r_th_otmu_li_ao",
@@ -286,10 +286,10 @@ arcpy.analysis.GenerateNearTable(
 
 
 # find point clusters
-
+out_fc = "path_to_output_feature_class"
 arcpy.gapro.FindPointClusters(
     input_points="vertices_to_points_from_split_parcel_lines_in_zones_r_th_otmu_li_ao_20250128",
-    out_feature_class=r"C:\ArcGIS\Projects\setback_measurement_2276\setback_measurement_2276.gdb\point_clusters_from_vertices_to_points_from_split_parcel_lines_in_zones_r_th_otmu_li_ao_20250128_FindPointClusters",
+    out_feature_class=out_fc,
     clustering_method="HDBSCAN",
     minimum_points=4,
     search_distance=None,
@@ -516,3 +516,34 @@ def get_parcel_building_join(parcel_polygon_fc, building_polygon_fc, output_fc):
     distance_field_name="",
     match_fields=None
     )
+
+
+# for debugging in Pro 2/19/25
+
+near_table = "trimmed_near_table_with_parcel_info"
+fields = [f.name for f in arcpy.ListFields(near_table)]
+fields = [f.name for f in arcpy.ListFields(near_table)]
+fields
+['OBJECTID', 'OBJECTID_1', 'IN_FID', 'NEAR_FID', 'NEAR_DIST', 'NEAR_RANK', 'FACING_STREET_1_PB_FID', 'FACING_STREET_1_DIST_FT', 'OTHER_SIDE_1_PB_FID', 'OTHER_SIDE_1_DIST_FT', 'FACING_STREET_2_PB_FID', 'FACING_STREET_2_DIST_FT', 'OTHER_SIDE_2_PB_FID', 'OTHER_SIDE_2_DIST_FT', 'FACING_STREET_3_PB_FID', 'FACING_STREET_3_DIST_FT', 'OTHER_SIDE_3_PB_FID', 'OTHER_SIDE_3_DIST_FT', 'FACING_STREET_4_PB_FID', 'FACING_STREET_4_DIST_FT', 'OTHER_SIDE_4_PB_FID', 'OTHER_SIDE_4_DIST_FT', 'parcel_line_OID', 'shared_boundary', 'parcel_polygon_OID', 'intended_parcel_polygon_OID']
+near_array = arcpy.da.TableToNumPyArray(near_table, fields)
+
+near_table = "trimmed_near_table_with_parcel_info_intended_parcel_polygon_oid_not_null"
+near_array = arcpy.da.TableToNumPyArray(near_table, fields)
+import pandas as pd
+near_df = pd.DataFrame(near_array)
+output_data = []
+in_fid_field = f"IN_FID"
+near_fid_field = f"NEAR_FID"
+near_dist_field = f"NEAR_DIST"
+facing_street_field_part_1 = f"FACING_STREET"
+other_side_field_part_1 = f"OTHER_SIDE"
+shared_boundary_field = f"shared_boundary"
+for in_fid, group in near_df.groupby(in_fid_field):
+    row = {in_fid_field: in_fid}
+    facing_count, other_count = 1, 1
+    for _, record in group.iterrows():
+        near_fid = record[near_fid_field]
+        distance = record[near_dist_field]
+        if record[shared_boundary_field]:
+            print(record)
+            break
