@@ -85,12 +85,21 @@ Using the Jan 2024 Nearmap data, the area of interest has 1494 buildings, but bu
 
 ![sample results](/img/setback-sample-results.png)
 
-TODO - finish this section
-
 Results feature classes and tables:
 - averages table - the sums and averages are in feet and 'count' refers to the number of sides of a building used to get the averages. 'Facing street' means the distance is to a parcel boundary that is not shared between two parcel features, and 'other side' means that the parcel boundary is shared between two parcels (see sample screenshot below).
 - 'filtered_results...' feature class from which the averages were calculated (773 buildings in this example)
 - 'clean_buildings...' feature class - unfiltered results with setback values for all buildings
 
-
 ![sample averages](/img/setback-sample-average-table.png)
+
+Explanation of fields in results feature classes:
+
+- IN_FID: feature id of building
+- FACING_STREET_X_DIST_FT: setback value between the building on a side facing a street
+- FACING_STREET_X_PB_FID: parcel boundary feature id of the parcel boundary segment that corresponds to the distance value in the field FACING_STREET_X_DIST_FT with the same value for X
+- OTHER_SIDE_X_DIST_FT: setback value between the building on a side where the parcel boundary is shared with another parcel i.e. segment is not facing a street
+- OTHER_SIDE_X_PB_FID: parcel boundary feature id of the parcel boundary segment that corresponds to the distance value in the field OTHER_SIDE_X_DIST_FT with the same value for X
+
+Note: order of fields can be changed in ArcGIS Pro (temporarily) by clicking on field name and dragging elsewhere
+
+![sample filtered results](/img/sample-filtered-results.png)
