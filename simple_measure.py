@@ -1,8 +1,9 @@
 import os
-import arcpy
 import time
+from collections import defaultdict
 import pandas as pd
 import numpy as np
+import arcpy
 from shared import set_environment, drop_gdb_item_if_exists
 from base_logger import logger
 
@@ -196,7 +197,7 @@ def trim_near_table(near_table, building_parcel_join_fc, parcel_id_table):
     arcpy.management.CopyRows(trimmed_near_table_view, trimmed_near_table_2)
     #fields = arcpy.ListFields(trimmed_near_table_2)
     field_names = [f.name for f in arcpy.ListFields(trimmed_near_table_2)]
-    logger.debug(f"Fields in trimmed_near_table_2 after first join: {field_names}")
+    logger.debug(f"Fields in trimmed_near_table_2 (after second join): {field_names}")
     # TODO - get full names of fields modified due to join?
     #iterate through the rows in the near table and remove rows where value in parcel_line_OID column is not in list in parcel_line_OIDs
 
@@ -209,36 +210,45 @@ def trim_near_table(near_table, building_parcel_join_fc, parcel_id_table):
     parcel_line_OIDs_field = f"{parcel_id_table_name}_parcel_line_OIDs" 
     #parcel_line_OIDs_field = f"{parcel_id_table_name}.parcel_line_OIDs" 
     logger.debug(f"field used in update cursor for parcel line OIDs: {parcel_line_OIDs_field}")
+    delete_count = 0
+    logger.debug(f"number of rows in trimmed_near_table_2 before deletion: {arcpy.management.GetCount(trimmed_near_table_2)}")
     with arcpy.da.UpdateCursor(trimmed_near_table_2, [parcel_line_OID_field, parcel_line_OIDs_field]) as cursor:
         for row in cursor:
             #logger.debug(f"row in UpdateCursor for final trim: {row}")
             parcel_line_OID = row[0]
             parcel_line_OIDs = row[1]
+            # TODO modify this if statement?
             #if str(parcel_line_OID) not in parcel_line_OIDs:
+            # those with null values in parcel_line_OID should be removed as these are buildings that cross multiple parcels
             if not parcel_line_OID or not parcel_line_OIDs or str(parcel_line_OID) not in parcel_line_OIDs:
                 cursor.deleteRow()
+                delete_count += 1
+    logger.debug(f"number of rows deleted from trimmed_near_table_2: {delete_count}")
             # TODO - remove all lines if parcel_line_OID is null?
     # TODO - remove this block if not necessary - manually update null values to -1 in fields with nulls (not sure why this was not necessary in initial runs)
     #field_strings_with_null = ["enclosing_parcel_polygon_oid", "ADDR1", "ADDR3", "CITY", "STATE", "ZIP", "STREET_NAME", "shared_boundary"]
     #fields_with_nulls = [f.name for f in fields if any([s in f.name for s in field_strings_with_null])]
     #logger.debug(f"Fields with nulls in trimmed_near_table_2: {fields_with_nulls}")
+    logger.debug(f"number of rows in trimmed_near_table_2 after deleting rows: {arcpy.management.GetCount(trimmed_near_table_2)}")
     with arcpy.da.UpdateCursor(trimmed_near_table_2, field_names) as cursor:
         for row in cursor:
             field_count = len(row)
             for i in range(0, field_count):
-                if not row[i]:
+                # cannot use if not row[i] because 0 is a valid value in the shared_boundary field
+                if row[i] is None:
                     row[i] = -1
             cursor.updateRow(row)
 
     logger.info(f"Check state of output trimmed near table at: {trimmed_near_table_2}")
     return trimmed_near_table_2
 
-
-def transform_detailed_near_table(near_table, field_prefix):
+# TODO -  remove this function if not needed
+def transform_detailed_near_table_original(near_table, field_prefix, output_table_name):
     """
     Transform near table to include info on pairs of building sides and parcel segments that share a parcel boundary (non-street-facing) and do not share a boundary (street-facing).
     :param near_table_name - string: Path to the near table that includes parcel info (output of trim_near_table()).
     :param field_prefix - string: Name of near table prior to joins in trim_near_table() e.g. 'trimmed_near_table_with_parcel_info'.
+    :param output_table_name - string: Name of the output transformed table.
     :return: Path to the transformed near table.
     """
     logger.info("Transforming near table to get one record per building and show all setback values for each building side...")
@@ -273,10 +283,15 @@ def transform_detailed_near_table(near_table, field_prefix):
         row = {in_fid_field: in_fid}
         facing_count, other_count = 1, 1
         for _, record in group.iterrows():
+            #logger.debug(f"record in transform_detailed_near_table(): {record}")
+            #for col, _ in record.items():
+            #    logger.debug(f"col: {col}, value: {record[col]}")
+            #break
             near_fid = record[near_fid_field]
             distance = record[near_dist_field]
             # TODO - add parameter for max number of fields for facing street and other side?
             #if not record[shared_boundary_field]:
+            # TODO - figure out why facing street fields are not being modified!!!
             if record[shared_boundary_field] == 0 and facing_count <= 4:
                 # limit to x number of facing street sides
                 #row[f"FACING_STREET_{facing_count}"] = record["STREET_NAME"]
@@ -307,6 +322,83 @@ def transform_detailed_near_table(near_table, field_prefix):
     arcpy.da.NumPyArrayToTable(output_array, transformed_table_path)
     logger.info(f"Check transformed near table written to: {transformed_table_path}")
     return transformed_table_path
+
+
+def transform_detailed_near_table(near_table, field_prefix, output_table_name):
+    """
+    Transform near table into a format that has one record per building and shows all setback values for each building side.
+    :param near_table: Path to the near table that includes parcel info.
+    :param field_prefix: Name of near table prior to joins.
+    :param output_table_name: Name of the output transformed table.
+    :return: Path to the transformed near table.
+    """
+    logger.info("Transforming near table to get one record per building and show all setback values for each building side...")
+    fields = [f.name for f in arcpy.ListFields(near_table)]
+    logger.debug(f"Near table fields in transform_detailed_near_table(): {fields}")
+
+    # TODO - modify field names if necessary
+    in_fid_field = f"{field_prefix}_IN_FID"
+    near_fid_field = f"{field_prefix}_NEAR_FID"
+    near_dist_field = f"{field_prefix}_NEAR_DIST"
+    shared_boundary_field = f"{field_prefix}_shared_boundary"
+    
+    # Fields for transformed output
+    max_sides = 4  # Adjust as necessary
+    facing_fields = [f"FACING_STREET_{i}_PB_FID" for i in range(1, max_sides + 1)] + \
+                    [f"FACING_STREET_{i}_DIST_FT" for i in range(1, max_sides + 1)]
+    other_side_fields = [f"OTHER_SIDE_{i}_PB_FID" for i in range(1, max_sides + 1)] + \
+                        [f"OTHER_SIDE_{i}_DIST_FT" for i in range(1, max_sides + 1)]
+    setback_fields = sorted(facing_fields + other_side_fields)
+    output_fields = [in_fid_field] + setback_fields
+    
+    # Create a dictionary to store transformed results
+    transformed_data = defaultdict(lambda: {
+        field: -1 for field in output_fields  # Initialize fields with -1
+    })
+    
+    # Read input table using SearchCursor
+    with arcpy.da.SearchCursor(near_table, [in_fid_field, near_fid_field, near_dist_field, shared_boundary_field]) as cursor:
+        for row in cursor:
+            in_fid, near_fid, distance, shared_boundary = row
+            record = transformed_data[in_fid]
+            # at this point, all values of shared_boundary are (incorrectly) 1 or -1 (the 0 values got replaced with -1) because the values in transformed_data got assigned to record?
+            #if shared_boundary != 1:
+            #    logger.debug(f"row in SearchCursor for transform_detailed_near_table() where shared_boundary is not 1: {row}")
+            #    logger.debug(f"record in SearchCursor for transform_detailed_near_table() where shared_boundary is not 1: {record}")
+            record[in_fid_field] = in_fid
+            if shared_boundary == 0:
+                logger.debug(f"row in SearchCursor for transform_detailed_near_table() where shared_boundary is 0: {row}")
+                logger.debug(f"record in SearchCursor for transform_detailed_near_table() where shared_boundary is 0: {record}")
+            #if not shared_boundary:
+                # Facing street side
+                for i in range(1, max_sides + 1):
+                    if record[f"FACING_STREET_{i}_PB_FID"] == -1:
+                        record[f"FACING_STREET_{i}_PB_FID"] = near_fid
+                        record[f"FACING_STREET_{i}_DIST_FT"] = distance
+                        break
+            elif shared_boundary == 1:
+                # Other side
+                for i in range(1, max_sides + 1):
+                    if record[f"OTHER_SIDE_{i}_PB_FID"] == -1:
+                        record[f"OTHER_SIDE_{i}_PB_FID"] = near_fid
+                        record[f"OTHER_SIDE_{i}_DIST_FT"] = distance
+                        break
+    
+    # Create output table
+    # TODO - pass path to function to avoid this here
+    gdb_path = os.getenv("GEODATABASE")
+    #output_table = os.path.join(arcpy.env.workspace, output_table_name)
+    arcpy.management.CreateTable(gdb_path, output_table_name)
+    output_table = os.path.join(gdb_path, output_table_name)
+    for field in output_fields:
+        arcpy.management.AddField(output_table, field, "LONG" if "PB_FID" in field else "FLOAT")
+    
+    # Insert transformed data using InsertCursor
+    with arcpy.da.InsertCursor(output_table, output_fields) as cursor:
+        for record in transformed_data.values():
+            cursor.insertRow([record[field] for field in output_fields])
+    
+    return output_table
 
 
 def join_transformed_near_table_to_building_fc(near_table, building_fc, trimmed_table_name, output_fc_name):
@@ -419,7 +511,7 @@ def get_average(results_fc, setback_type):
     with arcpy.da.SearchCursor(results_fc, field_names) as cursor:
         for row in cursor:
             for i in range(0, len(field_names)):
-                if row[i] > -1:
+                if row[i] is not None and row[i] > -1:
                     setback_sum += row[i]
                     setback_count += 1
     setback_average = setback_sum / setback_count
@@ -476,7 +568,8 @@ def run(building_fc, parcel_line_fc, building_parcel_join_fc, parcel_id_table, o
     # TODO - should transform occur before trim???
     trimmed_table_name = "trimmed_near_table_with_parcel_info"
     trimmed_near_table = trim_near_table(near_table_with_parcel_info, building_parcel_join_fc, parcel_id_table)
-    transformed_near_table = transform_detailed_near_table(trimmed_near_table, trimmed_table_name)
+    transformed_table_name = f"transformed_near_table_{output_near_table_suffix}"
+    transformed_near_table = transform_detailed_near_table(trimmed_near_table, trimmed_table_name, transformed_table_name)
     full_output_fc_name = f"buildings_with_setback_values_{output_near_table_suffix}"
     full_output_fc = join_transformed_near_table_to_building_fc(transformed_near_table, building_fc, trimmed_table_name, full_output_fc_name)
     clean_fc_name = f"clean_{full_output_fc_name}"
