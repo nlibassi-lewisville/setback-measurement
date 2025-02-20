@@ -18,8 +18,9 @@ def get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_si
     :param max_side_fields - int: Maximum number of fields to add to the near table for holding info on parcel boundary sides.
     :return: Path to the near table.
     """
-    # for closest_count: 20 was not enough when using 150 feet search radius - realized 2/13 that 30 is not enough (though 300 feet search radius might be)
+    # search_radius: 300 feet is enough for most cases but accounting for some exceptions with very long parcels
     search_radius = "800 Feet"
+    # closest_count: realized 2/13 that 30 is not enough
     closest_count = 50
     logger.info(f"Generating near table using nearest {closest_count} parcel lines within {search_radius} of each building feature...")
     near_table = os.path.join(os.getenv("GEODATABASE"), f"near_table_{output_near_table_suffix}")
@@ -39,9 +40,6 @@ def get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_si
 
     logger.info(f"Adding fields with side info to near table...")
     for i in range(1, max_side_fields + 1):
-    #while i < max_side_fields:
-        # Add facing street and other side fields
-        #i += 1
         arcpy.management.AddField(near_table, f"FACING_STREET_{i}_PB_FID", "LONG")
         arcpy.management.AddField(near_table, f"FACING_STREET_{i}_DIST_FT", "FLOAT")
         arcpy.management.AddField(near_table, f"OTHER_SIDE_{i}_PB_FID", "LONG")
@@ -51,11 +49,6 @@ def get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_si
         arcpy.management.CalculateField(near_table, f"FACING_STREET_{i}_DIST_FT", -1, "PYTHON3")
         arcpy.management.CalculateField(near_table, f"OTHER_SIDE_{i}_PB_FID", -1, "PYTHON3")
         arcpy.management.CalculateField(near_table, f"OTHER_SIDE_{i}_DIST_FT", -1, "PYTHON3")
-
-    # TODO - remove if not needed
-    # create a new field to hold the parcel polygon ID followed by building polygon ID in format '1583-1', '1583-7', etc.
-    #arcpy.management.AddField(near_table, parcel_building_id_field, "TEXT")
-    #arcpy.management.CalculateField(near_table, parcel_building_id_field, -1, "PYTHON3")
 
     return near_table
 
@@ -128,20 +121,14 @@ def trim_near_table(near_table, building_parcel_join_fc, parcel_id_table):
         rebuild_index="NO_REBUILD_INDEX",
         join_operation=""
     )
-    # TODO remove this comment if no issues - removed the text 'test_' in following four lines 2/18/25
     join_table = os.path.join(os.getenv("GEODATABASE"), "trimmed_near_table_after_first_join")
     arcpy.management.CopyRows(trimmed_near_table_view, join_table)
     join_table_fields = arcpy.ListFields(join_table)
     logger.debug(f"Fields in join_table after FIRST join: {[f.name for f in join_table_fields]}\n")
     trimmed_near_table_view_fields = arcpy.ListFields(trimmed_near_table_view)
     logger.debug(f"Fields in trimmed_near_table_view after FIRST join: {[f.name for f in trimmed_near_table_view_fields]}\n")
-    # TODO ensure building_parcel_join_fc is fc name only
-    #expression = f"int(!{building_parcel_join_fc}.enclosing_parcel_polygon_oid!)"
-    #expression = f"int(!{building_parcel_join_fc}_enclosing_parcel_polygon_oid!)"
-    # TODO - important to understand why enclosing_parcel_polygon_oid is null or just use parcel_polygon_OID?
     expression = f"int(!{building_parcel_join_fc}.parcel_polygon_OID!)"
     logger.debug(f"expression used in CalculateField for intended_parcel_polygon_OID: {expression}")
-    # why was original field_type TEXT here?
     arcpy.management.CalculateField(
         in_table=trimmed_near_table_view,
         field="intended_parcel_polygon_OID",
@@ -157,21 +144,8 @@ def trim_near_table(near_table, building_parcel_join_fc, parcel_id_table):
     trimmed_near_table_name = trimmed_near_table.split("\\")[-1]
     logger.debug(f"trimmed_near_table_name: {trimmed_near_table_name}")
 
-    # print first row for debugging
     fields = arcpy.ListFields(trimmed_near_table_view)
     logger.debug(f"Fields in trimmed_near_table_view after first join: {[f.name for f in fields]}")
-    logger.debug("first row of trimmed_near_table_view after first join:")
-    # for debugging only
-    with arcpy.da.SearchCursor(trimmed_near_table_view, [f.name for f in fields]) as cursor:
-        for row in cursor:
-            logger.info(row)
-            break
-    #logger.info("first value in field trimmed_near_table_with_parcel_info.intended_parcel_polygon_OID of trimmed_near_table_view:")
-    #with arcpy.da.SearchCursor(trimmed_near_table_view, "trimmed_near_table_with_parcel_info.intended_parcel_polygon_OID") as cursor:
-    #    for row in cursor:
-    #        logger.info(row)
-    #        break
-    # could work but these are apparently strings e.g. '1583'
     # TODO clean up dirty field names!!
     parcel_polygon_OID_field = 'trimmed_near_table_with_parcel_info.intended_parcel_polygon_OID'
     arcpy.management.AddJoin(
@@ -199,129 +173,35 @@ def trim_near_table(near_table, building_parcel_join_fc, parcel_id_table):
     field_names = [f.name for f in arcpy.ListFields(trimmed_near_table_2)]
     logger.debug(f"Fields in trimmed_near_table_2 (after second join): {field_names}")
     # TODO - get full names of fields modified due to join?
-    #iterate through the rows in the near table and remove rows where value in parcel_line_OID column is not in list in parcel_line_OIDs
-
-    # expecting'trimmed_near_table_with_parcel_info_parcel_line_OID' below
-    #parcel_line_OID_field = f"{trimmed_near_table_name}_parcel_line_OID"
     parcel_line_OID_field = f"{trimmed_near_table_name}_NEAR_FID"
     parcel_id_table_name = parcel_id_table.split("\\")[-1]
     logger.debug(f"parcel_id_table_name: {parcel_id_table_name}")
-    # expecting 'parcel_id_table_20250212_parcel_line_OIDs' below
     parcel_line_OIDs_field = f"{parcel_id_table_name}_parcel_line_OIDs" 
-    #parcel_line_OIDs_field = f"{parcel_id_table_name}.parcel_line_OIDs" 
     logger.debug(f"field used in update cursor for parcel line OIDs: {parcel_line_OIDs_field}")
     delete_count = 0
     logger.debug(f"number of rows in trimmed_near_table_2 before deletion: {arcpy.management.GetCount(trimmed_near_table_2)}")
+    #iterate through the rows in the near table and remove rows where value in parcel_line_OID column is not in list in parcel_line_OIDs
     with arcpy.da.UpdateCursor(trimmed_near_table_2, [parcel_line_OID_field, parcel_line_OIDs_field]) as cursor:
         for row in cursor:
-            #logger.debug(f"row in UpdateCursor for final trim: {row}")
             parcel_line_OID = row[0]
             parcel_line_OIDs = row[1]
-            # TODO modify this if statement?
-            #if str(parcel_line_OID) not in parcel_line_OIDs:
             # those with null values in parcel_line_OID should be removed as these are buildings that cross multiple parcels
             if not parcel_line_OID or not parcel_line_OIDs or str(parcel_line_OID) not in parcel_line_OIDs:
                 cursor.deleteRow()
                 delete_count += 1
     logger.debug(f"number of rows deleted from trimmed_near_table_2: {delete_count}")
-            # TODO - remove all lines if parcel_line_OID is null?
-    # TODO - remove this block if not necessary - manually update null values to -1 in fields with nulls (not sure why this was not necessary in initial runs)
-    #field_strings_with_null = ["enclosing_parcel_polygon_oid", "ADDR1", "ADDR3", "CITY", "STATE", "ZIP", "STREET_NAME", "shared_boundary"]
-    #fields_with_nulls = [f.name for f in fields if any([s in f.name for s in field_strings_with_null])]
-    #logger.debug(f"Fields with nulls in trimmed_near_table_2: {fields_with_nulls}")
     logger.debug(f"number of rows in trimmed_near_table_2 after deleting rows: {arcpy.management.GetCount(trimmed_near_table_2)}")
     with arcpy.da.UpdateCursor(trimmed_near_table_2, field_names) as cursor:
         for row in cursor:
             field_count = len(row)
             for i in range(0, field_count):
-                # cannot use if not row[i] because 0 is a valid value in the shared_boundary field
+                # cannot use 'if not row[i]:' because 0 is a valid value in the shared_boundary field
                 if row[i] is None:
                     row[i] = -1
             cursor.updateRow(row)
 
     logger.info(f"Check state of output trimmed near table at: {trimmed_near_table_2}")
     return trimmed_near_table_2
-
-# TODO -  remove this function if not needed
-def transform_detailed_near_table_original(near_table, field_prefix, output_table_name):
-    """
-    Transform near table to include info on pairs of building sides and parcel segments that share a parcel boundary (non-street-facing) and do not share a boundary (street-facing).
-    :param near_table_name - string: Path to the near table that includes parcel info (output of trim_near_table()).
-    :param field_prefix - string: Name of near table prior to joins in trim_near_table() e.g. 'trimmed_near_table_with_parcel_info'.
-    :param output_table_name - string: Name of the output transformed table.
-    :return: Path to the transformed near table.
-    """
-    logger.info("Transforming near table to get one record per building and show all setback values for each building side...")
-    
-    # Load near table data into a pandas DataFrame
-    fields = [f.name for f in arcpy.ListFields(near_table)]
-    near_array = arcpy.da.TableToNumPyArray(near_table, fields)
-    near_df = pd.DataFrame(near_array)
-    logger.debug(f"Near table fields in transform_detailed_near_table(): {fields}")
-    logger.debug(f"Near table head in transform_detailed_near_table(): {near_df.head()}")
-
-    output_data = []
-    # prepare field names
-    # TODO - ensure field names are correct here!!
-    
-    in_fid_field = f"{field_prefix}_IN_FID"
-    near_fid_field = f"{field_prefix}_NEAR_FID"
-    near_dist_field = f"{field_prefix}_NEAR_DIST"
-    facing_street_field_part_1 = f"{field_prefix}_FACING_STREET"
-    other_side_field_part_1 = f"{field_prefix}_OTHER_SIDE"
-    shared_boundary_field = f"{field_prefix}_shared_boundary"
-
-    #in_fid_field = f"IN_FID"
-    #near_fid_field = f"NEAR_FID"
-    #near_dist_field = f"NEAR_DIST"
-    #facing_street_field_part_1 = f"FACING_STREET"
-    #other_side_field_part_1 = f"OTHER_SIDE"
-    #shared_boundary_field = f"shared_boundary"
-
-    # transform table
-    for in_fid, group in near_df.groupby(in_fid_field):
-        row = {in_fid_field: in_fid}
-        facing_count, other_count = 1, 1
-        for _, record in group.iterrows():
-            #logger.debug(f"record in transform_detailed_near_table(): {record}")
-            #for col, _ in record.items():
-            #    logger.debug(f"col: {col}, value: {record[col]}")
-            #break
-            near_fid = record[near_fid_field]
-            distance = record[near_dist_field]
-            # TODO - add parameter for max number of fields for facing street and other side?
-            #if not record[shared_boundary_field]:
-            # TODO - figure out why facing street fields are not being modified!!!
-            if record[shared_boundary_field] == 0 and facing_count <= 4:
-                # limit to x number of facing street sides
-                #row[f"FACING_STREET_{facing_count}"] = record["STREET_NAME"]
-                row[f"{facing_street_field_part_1}_{facing_count}_PB_FID"] = near_fid
-                row[f"{facing_street_field_part_1}_{facing_count}_DIST_FT"] = distance
-                facing_count += 1
-                logger.debug(f"added facing street side {facing_count} for building {in_fid}")
-            elif record[shared_boundary_field] == 1 and other_count <= 4:
-                # limit to x number of other sides
-                #if other_count <= 4:
-                row[f"{other_side_field_part_1}_{other_count}_PB_FID"] = near_fid
-                row[f"{other_side_field_part_1}_{other_count}_DIST_FT"] = distance
-                other_count += 1
-        output_data.append(row)
-
-    # Convert output to a NumPy structured array and write to a table
-    output_df = pd.DataFrame(output_data)
-    logger.debug(output_df.head())
-    output_df.fillna(-1, inplace=True)
-    output_fields = [(col, "f8" if "DIST" in col else "i4") for col in output_df.columns]
-    logger.debug(f'Output fields for transformed near table: {output_fields}')
-    output_array = np.array([tuple(row) for row in output_df.to_records(index=False)], dtype=output_fields)
-    gdb_path = os.getenv("GEODATABASE")
-    # TODO - allow user to modify this name?
-    transformed_near_table_name = f"transformed_near_table_with_parcel_info"
-    transformed_table_path = os.path.join(gdb_path, transformed_near_table_name)
-    drop_gdb_item_if_exists(transformed_table_path)
-    arcpy.da.NumPyArrayToTable(output_array, transformed_table_path)
-    logger.info(f"Check transformed near table written to: {transformed_table_path}")
-    return transformed_table_path
 
 
 def transform_detailed_near_table(near_table, field_prefix, output_table_name):
@@ -336,7 +216,6 @@ def transform_detailed_near_table(near_table, field_prefix, output_table_name):
     fields = [f.name for f in arcpy.ListFields(near_table)]
     logger.debug(f"Near table fields in transform_detailed_near_table(): {fields}")
 
-    # TODO - modify field names if necessary
     in_fid_field = f"{field_prefix}_IN_FID"
     near_fid_field = f"{field_prefix}_NEAR_FID"
     near_dist_field = f"{field_prefix}_NEAR_DIST"
@@ -361,15 +240,8 @@ def transform_detailed_near_table(near_table, field_prefix, output_table_name):
         for row in cursor:
             in_fid, near_fid, distance, shared_boundary = row
             record = transformed_data[in_fid]
-            # at this point, all values of shared_boundary are (incorrectly) 1 or -1 (the 0 values got replaced with -1) because the values in transformed_data got assigned to record?
-            #if shared_boundary != 1:
-            #    logger.debug(f"row in SearchCursor for transform_detailed_near_table() where shared_boundary is not 1: {row}")
-            #    logger.debug(f"record in SearchCursor for transform_detailed_near_table() where shared_boundary is not 1: {record}")
             record[in_fid_field] = in_fid
             if shared_boundary == 0:
-                logger.debug(f"row in SearchCursor for transform_detailed_near_table() where shared_boundary is 0: {row}")
-                logger.debug(f"record in SearchCursor for transform_detailed_near_table() where shared_boundary is 0: {record}")
-            #if not shared_boundary:
                 # Facing street side
                 for i in range(1, max_sides + 1):
                     if record[f"FACING_STREET_{i}_PB_FID"] == -1:
@@ -385,9 +257,8 @@ def transform_detailed_near_table(near_table, field_prefix, output_table_name):
                         break
     
     # Create output table
-    # TODO - pass path to function to avoid this here
+    # TODO - pass full path to function to avoid use of getenv in function
     gdb_path = os.getenv("GEODATABASE")
-    #output_table = os.path.join(arcpy.env.workspace, output_table_name)
     arcpy.management.CreateTable(gdb_path, output_table_name)
     output_table = os.path.join(gdb_path, output_table_name)
     for field in output_fields:
@@ -440,22 +311,17 @@ def rename_fields(full_results_fc, trimmed_table_name, output_fc_name):
     :param output_fc_name: Name of the output feature class with renamed fields.
     :return: Path to the output feature class.
     """
-    # original field names are in aliases after all the joins
-    #type_dict = {"String": "TEXT", "Integer": "LONG", "Double": "DOUBLE", "DateOnly": "DATEONLY"}
     fields = [f for f in arcpy.ListFields(full_results_fc) if f.type not in ["Geometry", "OID"]]
     results_layer = "results_layer"
     arcpy.management.MakeFeatureLayer(full_results_fc, results_layer)
     for f in fields:
         if trimmed_table_name in f.aliasName:
             new_field_name = f.aliasName.replace(f"{trimmed_table_name}_", "")
-            #arcpy.management.AlterField(results_layer, f.name, new_field_name, new_field_name, field_type=type_dict[f.type])
             arcpy.management.AlterField(results_layer, f.name, new_field_name, new_field_name)
         elif f.aliasName != "OBJECTID" and f.name != "OBJECTID" and f.name != "SHAPE@":
-            #arcpy.management.AlterField(results_layer, f.name, f.aliasName, f.aliasName, field_type=type_dict[f.type])
             arcpy.management.AlterField(results_layer, f.name, f.aliasName, f.aliasName)
         elif f.aliasName == "OBJECTID":
             arcpy.management.DeleteField(results_layer, f.name)
-        #arcpy.management.AlterField(full_results_fc, f.name, new_field_name, new_field_name, field_type=f.type)
     arcpy.management.CopyFeatures(results_layer, output_fc_name)
     output_fc = os.path.join(os.getenv("FEATURE_DATASET"), output_fc_name)
     logger.info(f"Check renamed fields in output feature class at: {output_fc}")
@@ -473,7 +339,6 @@ def filter_results(results_fc, setback_count_max, filtered_fc_name):
     :return filtered_fc: Path to the filtered feature class.
     """
     drop_gdb_item_if_exists(filtered_fc_name)
-    #results_fc_copy = os.path.join(os.getenv("FEATURE_DATASET"), "results_fc_copy")
     arcpy.management.CopyFeatures(results_fc, filtered_fc_name)
     fields = arcpy.ListFields(results_fc)
     all_field_names = [f.name for f in fields]
@@ -484,7 +349,6 @@ def filter_results(results_fc, setback_count_max, filtered_fc_name):
         for row in cursor:
             setback_values = []
             for i in range(0, len(field_names)):
-                # TODO - check results of this for loop
                 if row[i] and row[i] > -1:
                     setback_values.append(row[i])
             if len(setback_values) > setback_count_max or 0 in setback_values:
@@ -501,9 +365,6 @@ def get_average(results_fc, setback_type):
     :param setback_type - string: Type of setback to calculate averages - either "FACING_STREET" or "OTHER_SIDE".
     :return: dict containing the sum, count, and average of the setback distances.
     """
-    #output_table_name = f"averages_{setback_type}_{output_table_suffix}"
-    #drop_gdb_item_if_exists(output_table_name)
-    #arcpy.management.CopyRows(results_fc, output_table_name)
     fields = arcpy.ListFields(results_fc)
     setback_sum = 0
     setback_count = 0
@@ -563,9 +424,6 @@ def run(building_fc, parcel_line_fc, building_parcel_join_fc, parcel_id_table, o
     # TODO - fix hardcoded names of feature classes and intermediate tables/fc's
     near_table = get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_side_fields=max_side_fields)
     near_table_with_parcel_info = get_near_table_with_parcel_info(near_table, parcel_line_fc, f"near_table_with_parcel_info_{output_near_table_suffix}")
-    # building_parcel_join_fc created in prep_data.py
-    #building_parcel_join_fc = "buildings_with_parcel_ids"
-    # TODO - should transform occur before trim???
     trimmed_table_name = "trimmed_near_table_with_parcel_info"
     trimmed_near_table = trim_near_table(near_table_with_parcel_info, building_parcel_join_fc, parcel_id_table)
     transformed_table_name = f"transformed_near_table_{output_near_table_suffix}"
@@ -577,19 +435,6 @@ def run(building_fc, parcel_line_fc, building_parcel_join_fc, parcel_id_table, o
     filtered_fc_name = f"filtered_results_{output_near_table_suffix}"
     filtered_fc = filter_results(clean_output_fc, 4, filtered_fc_name)
     create_average_table(filtered_fc, f"averages_{output_near_table_suffix}")
-    
-    #temp for testing average function
-    #filtered_fc = filtered_fc_name
-    #facing_street_averages = get_average(filtered_fc, "FACING_STREET")
-    #other_side_averages = get_average(filtered_fc, "OTHER_SIDE")
-    #print(f"facing street averages: {facing_street_averages}")
-    #print(f"other side averages: {other_side_averages}")
-    #create_average_table("filtered_results_nm_20240107_20250217", f"averages_{output_near_table_suffix}")
-
-    # for testing only:
-    #rename_fields(full_output_fc_name, trimmed_table_name)
-    #filtered_fc_name = "filtered_results_20250213"
-    #filtered_fc = filter_results(clean_fc_name, 4, filtered_fc_name)
     elapsed_minutes = (time.time() - start_time) / 60
     logger.info(f"Setback distance calculation with street info fields complete in {round(elapsed_minutes, 2)} minutes.")
 
