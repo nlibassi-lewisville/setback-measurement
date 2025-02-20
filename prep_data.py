@@ -183,33 +183,26 @@ def run(parcel_polygon_fc, parcel_line_fc, parcel_polygon_OID_field, shared_boun
     create_parcel_line_fc(parcel_polygon_fc, parcel_line_fc, parcel_polygon_OID_field)
     identify_shared_parcel_boundaries(parcel_line_fc, shared_boundary_field)
     get_building_parcel_join(building_polygon_fc, parcel_polygon_fc, building_parcel_join_fc)
-    
-    # TODO remove commented lines if order above ok
-    #identify_shared_parcel_boundaries(parcel_polygon_fc, parcel_line_fc, shared_boundary_field)
-    #get_building_parcel_join(building_polygon_fc, parcel_polygon_fc, building_parcel_join_fc)
-    
     parcel_id_table = os.path.join(os.getenv("GEODATABASE"), parcel_id_table_name)
     get_parcel_id_table(parcel_polygon_fc, parcel_line_fc, parcel_id_table)
-    logger.info("Data preparation complete.")
 
 
 if __name__ == "__main__":
     start_time = time.time()
     logger.info(f"Preparation of data started at: {time.ctime(start_time)}")
     set_environment()
+    # parcel_polygon_fc is existing parcel polygon feature class
     parcel_polygon_fc = "parcels_in_zones_r_th_otmu_li_ao"
-    # parcel_line_fc is desired name of output line feature class created from polygon feature class
-    parcel_line_fc = "parcel_lines_from_polygons_20250218"
-    #create_parcel_line_fc(parcel_polygon_fc, parcel_line_fc, "parcel_polygon_OID")
+    # building_polygon_fc is existing building polygon feature class
     building_polygon_fc = "extracted_footprints_nearmap_20240107_in_aoi_and_zones_r_th_otmu_li_ao"
-    # for testing building_parcel_join use existing "buildings_with_parcel_ids"?
-    building_parcel_join_fc = "building_parcel_join_20250218"
-    #get_building_parcel_join(parcel_polygon_fc, building_polygon_fc, building_parcel_join_fc)
-    #parcel_id_table = os.path.join(os.getenv("GEODATABASE"), "parcel_id_table_20250218")
-    #get_parcel_id_table(parcel_polygon_fc, parcel_line_fc, parcel_id_table)
     parcel_polygon_OID_field = "parcel_polygon_OID"
     shared_boundary_field = "shared_boundary"
+    # BEFORE RUNNING: modify desired names of output feature classes and table below
+    # parcel_line_fc is desired name of output line feature class created from polygon feature class
+    # TODO: add separate parameter for date string here
+    parcel_line_fc = "parcel_lines_from_polygons_20250218"
+    building_parcel_join_fc = "building_parcel_join_20250218"
     parcel_id_table_name = "parcel_id_table_20250218"
 
     run(parcel_polygon_fc, parcel_line_fc, parcel_polygon_OID_field, shared_boundary_field, building_polygon_fc, building_parcel_join_fc, parcel_id_table_name)
-    logger.info("Total time: {:.2f} seconds".format(time.time() - start_time))
+    logger.info("Preparation of data complete in: {:.2f} seconds".format(time.time() - start_time))

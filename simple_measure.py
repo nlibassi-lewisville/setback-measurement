@@ -420,7 +420,6 @@ def run(building_fc, parcel_line_fc, building_parcel_join_fc, parcel_id_table, o
     logger.info(f"Starting setback distance calculation with fields holding info on adjacent streets {time.ctime(start_time)}")
     # set environment to feature dataset
     set_environment()
-    
     # TODO - fix hardcoded names of feature classes and intermediate tables/fc's
     near_table = get_near_table(building_fc, parcel_line_fc, output_near_table_suffix, max_side_fields=max_side_fields)
     near_table_with_parcel_info = get_near_table_with_parcel_info(near_table, parcel_line_fc, f"near_table_with_parcel_info_{output_near_table_suffix}")
@@ -442,13 +441,15 @@ def run(building_fc, parcel_line_fc, building_parcel_join_fc, parcel_id_table, o
 # Run the script
 if __name__ == "__main__":
     set_environment()
+    # building_fc is existing building polygon feature class
     building_fc = "extracted_footprints_nearmap_20240107_in_aoi_and_zones_r_th_otmu_li_ao"
-    parcel_line_fc = "parcel_lines_from_polygons_20250218"
-    gdb_path = os.getenv("GEODATABASE")
-    # TODO - better to prevent user from naming the parcel_id_table??
-    parcel_id_table_name = "parcel_id_table_20250218"
-    parcel_id_table = os.path.join(gdb_path, parcel_id_table_name)
+    # BEFORE RUNNING: modify names of output_near_table_suffix and three outputs from prep_data.py
+    # output_near_table_suffix: for nearmap data from Jan 7, 2024 run on Feb 18, 2025
     output_near_table_suffix = "nm_20240107_20250218"
-    #building_parcel_join_fc = "buildings_with_parcel_ids"
+    parcel_line_fc = "parcel_lines_from_polygons_20250218"
+    parcel_id_table_name = "parcel_id_table_20250218"
     building_parcel_join_fc = "building_parcel_join_20250218"
+
+    gdb_path = os.getenv("GEODATABASE")
+    parcel_id_table = os.path.join(gdb_path, parcel_id_table_name)
     run(building_fc, parcel_line_fc, building_parcel_join_fc, parcel_id_table, output_near_table_suffix, max_side_fields=4)
