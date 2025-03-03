@@ -1,0 +1,79 @@
+2025-02-20 11:28:35,405 - DEBUG - col: OBJECTID, value: 60974
+2025-02-20 11:28:35,405 - DEBUG - col: trimmed_near_table_with_parcel_info_OBJECTID_1, value: 60994
+2025-02-20 11:28:35,405 - DEBUG - col: trimmed_near_table_with_parcel_info_IN_FID, value: 1232
+2025-02-20 11:28:35,405 - DEBUG - col: trimmed_near_table_with_parcel_info_NEAR_FID, value: 6029
+2025-02-20 11:28:35,405 - DEBUG - col: trimmed_near_table_with_parcel_info_NEAR_DIST, value: 122.08671629028554
+2025-02-20 11:28:35,405 - DEBUG - col: trimmed_near_table_with_parcel_info_NEAR_RANK, value: 1
+2025-02-20 11:28:35,406 - DEBUG - col: trimmed_near_table_with_parcel_info_FACING_STREET_1_PB_FID, value: -1
+2025-02-20 11:28:35,406 - DEBUG - col: trimmed_near_table_with_parcel_info_FACING_STREET_1_DIST_FT, value: -1.0
+2025-02-20 11:28:35,406 - DEBUG - col: trimmed_near_table_with_parcel_info_OTHER_SIDE_1_PB_FID, value: -1
+2025-02-20 11:28:35,406 - DEBUG - col: trimmed_near_table_with_parcel_info_OTHER_SIDE_1_DIST_FT, value: -1.0
+2025-02-20 11:28:35,406 - DEBUG - col: trimmed_near_table_with_parcel_info_FACING_STREET_2_PB_FID, value: -1
+2025-02-20 11:28:35,406 - DEBUG - col: trimmed_near_table_with_parcel_info_FACING_STREET_2_DIST_FT, value: -1.0
+2025-02-20 11:28:35,406 - DEBUG - col: trimmed_near_table_with_parcel_info_OTHER_SIDE_2_PB_FID, value: -1
+2025-02-20 11:28:35,406 - DEBUG - col: trimmed_near_table_with_parcel_info_OTHER_SIDE_2_DIST_FT, value: -1.0
+2025-02-20 11:28:35,406 - DEBUG - col: trimmed_near_table_with_parcel_info_FACING_STREET_3_PB_FID, value: -1
+2025-02-20 11:28:35,406 - DEBUG - col: trimmed_near_table_with_parcel_info_FACING_STREET_3_DIST_FT, value: -1.0
+2025-02-20 11:28:35,407 - DEBUG - col: trimmed_near_table_with_parcel_info_OTHER_SIDE_3_PB_FID, value: -1
+2025-02-20 11:28:35,407 - DEBUG - col: trimmed_near_table_with_parcel_info_OTHER_SIDE_3_DIST_FT, value: -1.0
+2025-02-20 11:28:35,407 - DEBUG - col: trimmed_near_table_with_parcel_info_FACING_STREET_4_PB_FID, value: -1
+2025-02-20 11:28:35,407 - DEBUG - col: trimmed_near_table_with_parcel_info_FACING_STREET_4_DIST_FT, value: -1.0
+2025-02-20 11:28:35,407 - DEBUG - col: trimmed_near_table_with_parcel_info_OTHER_SIDE_4_PB_FID, value: -1
+2025-02-20 11:28:35,407 - DEBUG - col: trimmed_near_table_with_parcel_info_OTHER_SIDE_4_DIST_FT, value: -1.0
+2025-02-20 11:28:35,407 - DEBUG - col: trimmed_near_table_with_parcel_info_parcel_line_OID, value: 6029
+2025-02-20 11:28:35,407 - DEBUG - col: trimmed_near_table_with_parcel_info_shared_boundary, value: 1
+2025-02-20 11:28:35,407 - DEBUG - col: trimmed_near_table_with_parcel_info_parcel_polygon_OID, value: 779
+2025-02-20 11:28:35,407 - DEBUG - col: trimmed_near_table_with_parcel_info_intended_parcel_polygon_OID, value: 1170
+
+
+2025-02-20 11:28:35,408 - DEBUG - col: building_parcel_join_20250218_OBJECTID, value: 1232
+2025-02-20 11:28:35,408 - DEBUG - col: building_parcel_join_20250218_Join_Count, value: 1
+2025-02-20 11:28:35,408 - DEBUG - col: building_parcel_join_20250218_TARGET_FID, value: 1232
+2025-02-20 11:28:35,408 - DEBUG - col: building_parcel_join_20250218_Class, value: 1
+2025-02-20 11:28:35,410 - DEBUG - col: building_parcel_join_20250218_source_imagery_date, value: 2024-01-07 00:00:00
+2025-02-20 11:28:35,410 - DEBUG - col: building_parcel_join_20250218_enclosing_parcel_polygon_oid, value: -1
+2025-02-20 11:28:35,410 - DEBUG - col: building_parcel_join_20250218_PROP_TYPE, value: R
+2025-02-20 11:28:35,410 - DEBUG - col: building_parcel_join_20250218_prop_id, value: 19584
+2025-02-20 11:28:35,410 - DEBUG - col: building_parcel_join_20250218_RNUMBER, value: R19584
+2025-02-20 11:28:35,410 - DEBUG - col: building_parcel_join_20250218_ABST_SUBD_NUM, value: A0698A
+2025-02-20 11:28:35,410 - DEBUG - col: building_parcel_join_20250218_ABST_SUBD_NAME, value: A.G. KING
+2025-02-20 11:28:35,410 - DEBUG - col: building_parcel_join_20250218_OWNER, value: DALLAS AREA RAPID TRANSIT
+2025-02-20 11:28:35,410 - DEBUG - col: building_parcel_join_20250218_ADDR1, value: -1
+2025-02-20 11:28:35,411 - DEBUG - col: building_parcel_join_20250218_ADDR2, value: PO BOX 660163
+2025-02-20 11:28:35,411 - DEBUG - col: building_parcel_join_20250218_ADDR3, value: -1
+2025-02-20 11:28:35,411 - DEBUG - col: building_parcel_join_20250218_CITY, value: DALLAS
+2025-02-20 11:28:35,411 - DEBUG - col: building_parcel_join_20250218_STATE, value: TX
+2025-02-20 11:28:35,411 - DEBUG - col: building_parcel_join_20250218_ZIP, value: 75266-0163
+2025-02-20 11:28:35,411 - DEBUG - col: building_parcel_join_20250218_SITUS, value: -1
+2025-02-20 11:28:35,438 - DEBUG - col: building_parcel_join_20250218_SITUS_NUM, value: -1
+2025-02-20 11:28:35,438 - DEBUG - col: building_parcel_join_20250218_SITUS_STREET, value: -1
+2025-02-20 11:28:35,438 - DEBUG - col: building_parcel_join_20250218_SITUS_PREDIR, value: -1
+2025-02-20 11:28:35,438 - DEBUG - col: building_parcel_join_20250218_SITUS_STREETNAME, value: -1
+2025-02-20 11:28:35,438 - DEBUG - col: building_parcel_join_20250218_SITUS_STREETTYPE, value: -1
+2025-02-20 11:28:35,438 - DEBUG - col: building_parcel_join_20250218_LEGAL_DESC, value: A0698A A.G. KING, TR 5, 7.1187 ACRES, OLD DCAD TR 71
+2025-02-20 11:28:35,439 - DEBUG - col: building_parcel_join_20250218_BLOCK, value: -1
+2025-02-20 11:28:35,439 - DEBUG - col: building_parcel_join_20250218_LOT, value: 5
+2025-02-20 11:28:35,440 - DEBUG - col: building_parcel_join_20250218_LANDSQFT, value: 310090.572
+2025-02-20 11:28:35,440 - DEBUG - col: building_parcel_join_20250218_ACREAGE, value: 7.1187
+2025-02-20 11:28:35,440 - DEBUG - col: building_parcel_join_20250218_LIVINGAREA, value: -1.0
+2025-02-20 11:28:35,440 - DEBUG - col: building_parcel_join_20250218_yr_blt, value: -1
+2025-02-20 11:28:35,440 - DEBUG - col: building_parcel_join_20250218_EXEMPTION, value: EX-XV
+2025-02-20 11:28:35,440 - DEBUG - col: building_parcel_join_20250218_TAXUNIT, value: C12, S09
+2025-02-20 11:28:35,440 - DEBUG - col: building_parcel_join_20250218_SPTB_CODE, value: C2
+2025-02-20 11:28:35,440 - DEBUG - col: building_parcel_join_20250218_LAND_TYPE, value: 6
+2025-02-20 11:28:35,441 - DEBUG - col: building_parcel_join_20250218_DCADHyperlink, value: https://esearch.dentoncad.com/Property/View/19584
+2025-02-20 11:28:35,441 - DEBUG - col: building_parcel_join_20250218_LAST_IMPORT_DATE, value: 2024-10-27 22:26:50
+2025-02-20 11:28:35,441 - DEBUG - col: building_parcel_join_20250218_Plats, value: https://www.dentoncad.net/data/_uploaded/plats/A0698A.tif
+2025-02-20 11:28:35,441 - DEBUG - col: building_parcel_join_20250218_cert_mkt_v, value: 1860546.0
+2025-02-20 11:28:35,441 - DEBUG - col: building_parcel_join_20250218_cad_zoning, value: Commercial
+2025-02-20 11:28:35,441 - DEBUG - col: building_parcel_join_20250218_Shape_Length_1, value: 5975.807830800042
+2025-02-20 11:28:35,447 - DEBUG - col: building_parcel_join_20250218_Shape_Area_1, value: 369941.4297435974
+2025-02-20 11:28:35,448 - DEBUG - col: building_parcel_join_20250218_parcel_polygon_OID, value: 1170
+2025-02-20 11:28:35,448 - DEBUG - col: building_parcel_join_20250218_Shape_Length, value: 135.7781649992987
+2025-02-20 11:28:35,449 - DEBUG - col: building_parcel_join_20250218_Shape_Area, value: 814.3489037198434
+2025-02-20 11:28:35,449 - DEBUG - col: parcel_id_table_20250218_OBJECTID, value: 1170
+2025-02-20 11:28:35,449 - DEBUG - col: parcel_id_table_20250218_parcel_polygon_OID, value: 1170
+2025-02-20 11:28:35,449 - DEBUG - col: parcel_id_table_20250218_parcel_line_OIDs, value: [2871, 4003, 4040, 4783, 4785, 4860, 5215, 6029, 6327, 6328]
+
+
+2025-02-20 12:39:43,997 - DEBUG - Near table fields in transform_detailed_near_table(): ['OBJECTID', 'trimmed_near_table_with_parcel_info_OBJECTID_1', 'trimmed_near_table_with_parcel_info_IN_FID', 'trimmed_near_table_with_parcel_info_NEAR_FID', 'trimmed_near_table_with_parcel_info_NEAR_DIST', 'trimmed_near_table_with_parcel_info_NEAR_RANK', 'trimmed_near_table_with_parcel_info_FACING_STREET_1_PB_FID', 'trimmed_near_table_with_parcel_info_FACING_STREET_1_DIST_FT', 'trimmed_near_table_with_parcel_info_OTHER_SIDE_1_PB_FID', 'trimmed_near_table_with_parcel_info_OTHER_SIDE_1_DIST_FT', 'trimmed_near_table_with_parcel_info_FACING_STREET_2_PB_FID', 'trimmed_near_table_with_parcel_info_FACING_STREET_2_DIST_FT', 'trimmed_near_table_with_parcel_info_OTHER_SIDE_2_PB_FID', 'trimmed_near_table_with_parcel_info_OTHER_SIDE_2_DIST_FT', 'trimmed_near_table_with_parcel_info_FACING_STREET_3_PB_FID', 'trimmed_near_table_with_parcel_info_FACING_STREET_3_DIST_FT', 'trimmed_near_table_with_parcel_info_OTHER_SIDE_3_PB_FID', 'trimmed_near_table_with_parcel_info_OTHER_SIDE_3_DIST_FT', 'trimmed_near_table_with_parcel_info_FACING_STREET_4_PB_FID', 'trimmed_near_table_with_parcel_info_FACING_STREET_4_DIST_FT', 'trimmed_near_table_with_parcel_info_OTHER_SIDE_4_PB_FID', 'trimmed_near_table_with_parcel_info_OTHER_SIDE_4_DIST_FT', 'trimmed_near_table_with_parcel_info_parcel_line_OID', 'trimmed_near_table_with_parcel_info_shared_boundary', 'trimmed_near_table_with_parcel_info_parcel_polygon_OID', 'trimmed_near_table_with_parcel_info_intended_parcel_polygon_OID', 'building_parcel_join_20250218_OBJECTID', 'building_parcel_join_20250218_Join_Count', 'building_parcel_join_20250218_TARGET_FID', 'building_parcel_join_20250218_Class', 'building_parcel_join_20250218_source_imagery_date', 'building_parcel_join_20250218_enclosing_parcel_polygon_oid', 'building_parcel_join_20250218_PROP_TYPE', 'building_parcel_join_20250218_prop_id', 'building_parcel_join_20250218_RNUMBER', 'building_parcel_join_20250218_ABST_SUBD_NUM', 'building_parcel_join_20250218_ABST_SUBD_NAME', 'building_parcel_join_20250218_OWNER', 'building_parcel_join_20250218_ADDR1', 'building_parcel_join_20250218_ADDR2', 'building_parcel_join_20250218_ADDR3', 'building_parcel_join_20250218_CITY', 'building_parcel_join_20250218_STATE', 'building_parcel_join_20250218_ZIP', 'building_parcel_join_20250218_SITUS', 'building_parcel_join_20250218_SITUS_NUM', 'building_parcel_join_20250218_SITUS_STREET', 'building_parcel_join_20250218_SITUS_PREDIR', 'building_parcel_join_20250218_SITUS_STREETNAME', 'building_parcel_join_20250218_SITUS_STREETTYPE', 'building_parcel_join_20250218_LEGAL_DESC', 'building_parcel_join_20250218_BLOCK', 'building_parcel_join_20250218_LOT', 'building_parcel_join_20250218_LANDSQFT', 'building_parcel_join_20250218_ACREAGE', 'building_parcel_join_20250218_LIVINGAREA', 'building_parcel_join_20250218_yr_blt', 'building_parcel_join_20250218_EXEMPTION', 'building_parcel_join_20250218_TAXUNIT', 'building_parcel_join_20250218_SPTB_CODE', 'building_parcel_join_20250218_LAND_TYPE', 'building_parcel_join_20250218_DCADHyperlink', 'building_parcel_join_20250218_LAST_IMPORT_DATE', 'building_parcel_join_20250218_Plats', 'building_parcel_join_20250218_cert_mkt_v', 'building_parcel_join_20250218_cad_zoning', 'building_parcel_join_20250218_Shape_Length_1', 'building_parcel_join_20250218_Shape_Area_1', 'building_parcel_join_20250218_parcel_polygon_OID', 'building_parcel_join_20250218_Shape_Length', 'building_parcel_join_20250218_Shape_Area', 'parcel_id_table_20250218_OBJECTID', 'parcel_id_table_20250218_parcel_polygon_OID', 'parcel_id_table_20250218_parcel_line_OIDs']
